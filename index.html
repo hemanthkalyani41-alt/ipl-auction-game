@@ -1,299 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPL Mega Auction Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+    <meta charset="UTF-8"><title>IPL Mega Auction Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg-color: #0d0d0d; --card-bg: #1a1a1a; --gold: #D4AF37; --neon-red: #ff073a; --text-main: #f8fafc; --text-muted: #94a3b8; }
-        body { font-family: 'Montserrat', sans-serif; background-color: var(--bg-color); color: var(--text-main); text-align: center; margin: 0; padding-top: 80px; }
-        .navbar { position: fixed; top: 0; left: 0; width: 100%; background: linear-gradient(135deg, #1f1f1f 25%, #141414 25%, #141414 50%, #1f1f1f 50%, #1f1f1f 75%, #141414 75%, #141414 100%); background-size: 10px 10px; border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; box-sizing: border-box; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); }
-        .navbar .logo { font-size: 1.5em; font-weight: 800; color: var(--gold); letter-spacing: 1px;}
-        .navbar .stats { font-weight: 600; font-size: 1.1em; }
-        .navbar .stats span { margin-left: 20px; color: var(--text-main); }
-        .container { max-width: 650px; margin: 0 auto 30px auto; background: var(--card-bg); padding: 30px; border-radius: 12px; border-top: 3px solid var(--neon-red); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { color: var(--text-main); font-size: 2.5em; margin-bottom: 5px; font-weight: 800;}
-        h3 { color: var(--text-muted); margin-top: 0; font-weight: 400;}
-        button { background-color: var(--gold); color: #000; border: none; padding: 15px 25px; margin: 10px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 800; text-transform: uppercase; transition: all 0.3s ease; }
-        button:hover { background-color: var(--text-main); transform: translateY(-4px); box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4); }
-        input, select { padding: 12px; font-size: 16px; border: 1px solid #333; border-radius: 6px; text-align: center; background: #222; color: #fff; font-family: 'Montserrat', sans-serif;}
+        :root { --bg-color: #0d0d0d; --card-bg: #1a1a1a; --gold: #D4AF37; --neon-red: #ff073a; --text-main: #f8fafc; }
+        body { font-family: 'Montserrat', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding-top: 80px; }
+        .navbar { position: fixed; top: 0; width: 100%; background: #141414; border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; padding: 15px 30px; box-sizing: border-box; z-index: 1000; }
+        .container { max-width: 600px; margin: auto; background: var(--card-bg); padding: 30px; border-radius: 12px; border-top: 3px solid var(--neon-red); }
+        button { background: var(--gold); color: #000; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         .hidden { display: none !important; }
-        #display-room-code { color: var(--gold); letter-spacing: 3px; font-size: 1.8em;}
-        .player-card { background: #222; padding: 30px; border-radius: 10px; border: 1px solid #333; margin-bottom: 20px; transition: all 0.4s ease; }
-        .player-avatar { width: 180px; height: 180px; border-radius: 15px; border: 3px solid var(--gold); margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.5); object-fit: cover; background: #111; }
-        .bid-dashboard { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #111; padding: 20px; border-radius: 10px; border: 1px solid #333;}
-        .host-panel { background: #3a1111; padding: 15px; border-radius: 8px; border: 1px solid var(--neon-red); margin-bottom: 20px; display: flex; justify-content: space-around; }
-        .host-panel button { padding: 10px 15px; font-size: 14px; margin: 0; }
+        .host-panel { background: #3a1111; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-around; }
+        .player-avatar { width: 160px; height: 160px; border-radius: 10px; border: 3px solid var(--gold); }
     </style>
 </head>
 <body>
-
-<nav class="navbar">
-    <div class="logo">🏏 PRO AUCTION</div>
-    <div class="stats hidden" id="nav-stats">
-        <span>Room: <strong id="nav-room-code" style="color: var(--gold);">---</strong></span>
-        <span>Purse: ₹<strong id="nav-purse" style="color: var(--neon-red);">0</strong> Cr</span>
-    </div>
-</nav>
+<nav class="navbar"><div style="color:var(--gold); font-weight:800;">🏏 PRO AUCTION</div><div id="nav-stats" class="hidden">Room: <span id="nav-code" style="color:var(--gold);"></span> | ₹<span id="nav-purse" style="color:var(--neon-red);"></span> Cr</div></nav>
 
 <div class="container" id="home-screen">
-    <h1>FRANCHISE LOGIN</h1>
-    <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h3>Host a New Game</h3>
-        
-        <label>Format: </label>
-        <select id="format-select" style="margin-bottom: 15px; width: 80%;">
-            <option value="all">Mega Auction (All Players)</option>
-            <option value="tier1">Marquee Players Only (Rating 90+)</option>
-            <option value="indian">Indian Players Only</option>
-            <option value="overseas">Overseas Players Only</option>
-        </select><br>
-
-        <label>Purse (Cr): </label> <input type="number" id="purse-input" value="100" style="width: 80px;"><br><br>
-        <button id="create-btn">Create Private Room</button>
-    </div>
-    <div style="background: #111; padding: 20px; border-radius: 8px;">
-        <h3>Join Existing Game</h3>
-        <input type="text" id="room-code-input" placeholder="Enter Code">
-        <button id="join-btn" style="background-color: var(--text-main); color: #000;">Join Room</button>
-    </div>
-</div>
-
-<div class="container hidden" id="lobby-screen">
-    <h1>VIP LOBBY</h1>
-    <h2>Room Code: <span id="display-room-code">---</span></h2>
-    <p style="color: var(--gold);" id="lobby-format-info"></p>
-    <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <ul id="players-list" style="list-style-type: none; padding: 0; font-size: 1.2em; color: var(--gold);"></ul>
-    </div>
-    <button id="start-auction-btn" class="hidden" style="background-color: var(--neon-red); color: white; width: 100%;">START MEGA AUCTION</button>
+    <h1>AUCTION SETUP</h1>
+    <select id="format-select" style="width:100%; padding:10px; margin-bottom:15px;">
+        <option value="T20">T20 Mega Auction</option>
+        <option value="ODI">ODI World Cup Draft</option>
+        <option value="Test">Test Championship</option>
+    </select>
+    <input type="number" id="purse-input" value="100" style="width:100px; padding:10px;"> Cr Purse<br><br>
+    <button id="create-btn">Host Auction</button>
+    <hr><input type="text" id="join-input" placeholder="Room Code"> <button id="join-btn">Join</button>
 </div>
 
 <div class="container hidden" id="auction-screen">
-    
     <div id="host-controls" class="host-panel hidden">
-        <strong style="color: var(--neon-red); align-self: center;">👑 HOST:</strong>
-        <button id="pause-btn" style="background: #444; color: white;">⏸ Pause</button>
-        <button id="resume-btn" class="hidden" style="background: #10b981; color: white;">▶ Resume</button>
-        <button id="undo-btn" style="background: #b97a10; color: white;">⏪ Undo Bid</button>
+        <button id="pause-btn">⏸ Pause</button><button id="resume-btn" class="hidden">▶ Resume</button><button id="undo-btn">⏪ Undo</button>
     </div>
-
-    <div class="player-card" id="card-bg">
-        <img id="player-image" class="player-avatar" src="" alt="Player Avatar" referrerpolicy="no-referrer">
-        <h1 id="player-name" style="margin: 0; font-size: 2.8em; text-transform: uppercase;">Player Name</h1>
-        <h2 id="player-role-country" style="color: var(--text-muted); margin-top: 5px;">Role | Country</h2>
-        <h2 style="color: var(--gold);">Base Price: ₹<span id="player-base-price">0</span> Lakhs</h2>
+    <div style="background:#222; padding:20px; border-radius:10px;">
+        <img id="player-img" class="player-avatar" src="" referrerpolicy="no-referrer">
+        <h2 id="p-name"></h2><p id="p-info"></p>
+        <h3 style="color:var(--gold);">Base: ₹<span id="p-base"></span> L</h3>
     </div>
-    
-    <div class="bid-dashboard">
-        <div style="text-align: left;">
-            <p style="margin: 0; font-weight: 600; color: var(--text-muted);">Current Bidder:</p>
-            <h2 id="current-bidder" style="margin: 0; color: var(--text-main);">None</h2>
-            <h2 style="margin: 0; color: var(--gold);">₹<span id="current-bid">0</span> L</h2>
-        </div>
-        <div style="text-align: right;">
-            <h1 id="timer" style="font-size: 4em; color: var(--neon-red); margin: 0; text-shadow: 0 0 10px rgba(255, 7, 58, 0.4);">15</h1>
-        </div>
+    <div style="display:flex; justify-content:space-between; padding:20px;">
+        <div style="text-align:left;">Bidder: <span id="c-bidder">None</span><br><b>₹<span id="c-bid">0</span> L</b></div>
+        <div id="timer" style="font-size:3em; color:var(--neon-red);">15</div>
     </div>
-
-    <button id="bid-btn" style="width: 100%; font-size: 1.8em; padding: 20px; background: linear-gradient(90deg, #D4AF37, #f3c623);">PLACE BID</button>
-    
-    <div style="margin-top: 20px; text-align: left; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
-        <h3 style="margin: 0 0 10px 0; color: var(--gold);">📋 My Squad (<span id="squad-count">0</span>)</h3>
-        <ul id="my-squad-list" style="list-style-type: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;"></ul>
-    </div>
-
-    <button id="end-early-btn" class="hidden" style="background: transparent; color: var(--text-muted); font-size: 0.8em; margin-top: 20px; border: 1px solid #333;">End Auction Early</button>
-</div>
-
-<div class="container hidden" id="chat-container" style="padding: 15px;">
-    <h3 style="margin: 0 0 10px 0; text-align: left; color: var(--gold);">💬 Comms Channel</h3>
-    <div id="chat-messages" style="height: 120px; overflow-y: auto; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px; text-align: left; font-size: 0.95em; margin-bottom: 10px;"></div>
-    <div style="display: flex; gap: 10px;">
-        <input type="text" id="chat-input" placeholder="Type a message..." style="flex-grow: 1;">
-        <button id="send-chat-btn" style="margin: 0; padding: 10px 20px;">Send</button>
-    </div>
-</div>
-
-<div class="container hidden" id="results-screen">
-    <h1 style="color: var(--gold);">🏆 FINAL RANKINGS</h1>
-    <p style="color: var(--text-muted); margin-bottom: 20px;">Based on squad balance and star power.</p>
-    <div id="leaderboard-container"></div>
-    <button onclick="location.reload()" style="margin-top: 30px;">Play Again</button>
+    <button id="bid-btn" style="width:100%; font-size:1.5em;">PLACE BID</button>
 </div>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    const socket = io(); 
-    let myRoomCode = "";
-    let isHost = false; // Tracks if you are the host
+    const socket = io(); let room = ""; let isHost = false;
+    const screens = { home: document.getElementById('home-screen'), auction: document.getElementById('auction-screen') };
 
-    const homeScreen = document.getElementById('home-screen');
-    const lobbyScreen = document.getElementById('lobby-screen');
-    const auctionScreen = document.getElementById('auction-screen');
-    const resultsScreen = document.getElementById('results-screen');
-    const chatContainer = document.getElementById('chat-container');
-    const navStats = document.getElementById('nav-stats');
-    
-    // SEND FORMAT TO SERVER
-    document.getElementById('create-btn').addEventListener('click', () => {
-        socket.emit('createRoom', { 
-            startingPurse: document.getElementById('purse-input').value,
-            format: document.getElementById('format-select').value 
-        });
+    document.getElementById('create-btn').onclick = () => socket.emit('createRoom', { startingPurse: document.getElementById('purse-input').value, format: document.getElementById('format-select').value });
+    document.getElementById('join-btn').onclick = () => socket.emit('joinRoom', document.getElementById('join-input').value.toUpperCase());
+    document.getElementById('bid-btn').onclick = () => socket.emit('placeBid', room);
+    document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
+    document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
+    document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
+
+    socket.on('roomCreated', d => { room = d.code; isHost = true; screens.home.classList.add('hidden'); screens.auction.classList.remove('hidden'); document.getElementById('host-controls').classList.remove('hidden'); document.getElementById('nav-stats').classList.remove('hidden'); document.getElementById('nav-code').innerText = room; document.getElementById('nav-purse').innerText = d.purse; socket.emit('startAuction', room); });
+    socket.on('roomJoined', d => { room = d.code; screens.home.classList.add('hidden'); screens.auction.classList.remove('hidden'); document.getElementById('nav-stats').classList.remove('hidden'); document.getElementById('nav-code').innerText = room; document.getElementById('nav-purse').innerText = d.purse; });
+
+    socket.on('newPlayerUp', d => {
+        document.getElementById('p-name').innerText = d.player.name; document.getElementById('p-info').innerText = `${d.player.role} | ${d.player.country}`; document.getElementById('p-base').innerText = d.player.basePrice;
+        document.getElementById('c-bid').innerText = d.player.basePrice; document.getElementById('c-bidder').innerText = "None";
+        const img = document.getElementById('player-img'); const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=D4AF37&color=000&bold=true`;
+        img.src = d.player.image || avatar; img.onerror = () => { img.src = avatar; };
+        document.getElementById('timer').style.color = 'var(--neon-red)';
     });
 
-    socket.on('roomCreated', (data) => {
-        isHost = true; 
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden'); navStats.classList.remove('hidden');
-        document.getElementById('display-room-code').innerText = data.code;
-        document.getElementById('nav-room-code').innerText = data.code;
-        document.getElementById('nav-purse').innerText = data.purse;
-        document.getElementById('lobby-format-info').innerText = `Pool Size: ${data.poolSize} Players`;
-        
-        document.getElementById('start-auction-btn').classList.remove('hidden');
-        document.getElementById('end-early-btn').classList.remove('hidden');
-        document.getElementById('host-controls').classList.remove('hidden'); // Show Superpowers!
-        myRoomCode = data.code;
-    });
-
-    document.getElementById('join-btn').addEventListener('click', () => {
-        socket.emit('joinRoom', document.getElementById('room-code-input').value);
-    });
-
-    socket.on('roomJoined', (data) => {
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden'); navStats.classList.remove('hidden');
-        document.getElementById('display-room-code').innerText = data.code;
-        document.getElementById('nav-room-code').innerText = data.code;
-        document.getElementById('nav-purse').innerText = data.purse;
-        myRoomCode = data.code;
-    });
-
-    socket.on('updateLobby', (users) => {
-        const list = document.getElementById('players-list'); list.innerHTML = '';
-        users.forEach(u => { 
-            let icon = u.name === 'Host' ? '👑' : '👤';
-            let displayName = u.id === socket.id ? `You (${u.name})` : u.name;
-            list.innerHTML += `<li style="padding: 5px 0;">${icon} ${displayName}</li>`; 
-        });
-    });
-
-    // HOST CONTROLS LISTENERS
-    document.getElementById('start-auction-btn').addEventListener('click', () => { socket.emit('startAuction', myRoomCode); });
-    document.getElementById('end-early-btn').addEventListener('click', () => { socket.emit('endAuctionEarly', myRoomCode); });
-    
-    document.getElementById('pause-btn').addEventListener('click', () => { socket.emit('pauseAuction', myRoomCode); });
-    document.getElementById('resume-btn').addEventListener('click', () => { socket.emit('resumeAuction', myRoomCode); });
-    document.getElementById('undo-btn').addEventListener('click', () => { socket.emit('undoBid', myRoomCode); });
-
-    document.getElementById('bid-btn').addEventListener('click', () => { socket.emit('placeBid', myRoomCode); });
-
-    // VISUAL FEEDBACK FOR HOST POWERS
-    socket.on('auctionPaused', () => {
-        document.getElementById('timer').style.color = '#f3c623'; // Turn yellow
-        document.getElementById('timer').innerText = "PAUSED";
-        if(isHost) { document.getElementById('pause-btn').classList.add('hidden'); document.getElementById('resume-btn').classList.remove('hidden'); }
-    });
-
-    socket.on('auctionResumed', () => {
-        document.getElementById('timer').style.color = 'var(--neon-red)'; // Back to red
-        if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
-    });
-
-    socket.on('newPlayerUp', (data) => {
-        lobbyScreen.classList.add('hidden'); auctionScreen.classList.remove('hidden');
-        document.getElementById('card-bg').style.background = '#222'; 
-        document.getElementById('card-bg').style.borderColor = '#333';
-        document.getElementById('timer').style.color = 'var(--neon-red)'; // Reset timer color
-        
-        // Reset Host Buttons
-        if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
-        
-        const imgElement = document.getElementById('player-image');
-        const encodedName = encodeURIComponent(data.player.name);
-        const backupAvatar = `https://ui-avatars.com/api/?name=${encodedName}&size=180&background=D4AF37&color=000&bold=true`;
-        imgElement.onerror = null; 
-
-        if (data.player.image && data.player.image !== "") {
-            imgElement.src = data.player.image;
-            imgElement.onerror = function() { this.onerror = null; this.src = backupAvatar; };
-        } else {
-            imgElement.src = backupAvatar;
-        }
-        
-        document.getElementById('player-name').innerText = data.player.name;
-        document.getElementById('player-role-country').innerText = `${data.player.role} | ${data.player.country}`;
-        document.getElementById('player-base-price').innerText = data.player.basePrice;
-        document.getElementById('current-bid').innerText = data.player.basePrice;
-        document.getElementById('current-bidder').innerText = "None";
-    });
-
-    socket.on('timerUpdate', (time) => { document.getElementById('timer').innerText = time; });
-
-    socket.on('bidUpdated', (data) => {
-        document.getElementById('current-bidder').innerText = data.bidderName;
-        document.getElementById('current-bid').innerText = data.bidAmount;
-    });
-
-    socket.on('playerSold', (data) => {
-        document.getElementById('card-bg').style.background = '#1a2e1a'; 
-        document.getElementById('card-bg').style.borderColor = '#10b981';
-        document.getElementById('player-name').innerText = `SOLD TO ${data.winnerName.toUpperCase()}!`;
-        
-        const me = data.users.find(u => u.id === socket.id);
-        if (me) {
-            document.getElementById('nav-purse').innerText = me.purseRemaining.toFixed(2);
-            document.getElementById('squad-count').innerText = me.squad.length;
-            const squadList = document.getElementById('my-squad-list');
-            if (me.squad.length > 0) {
-                squadList.innerHTML = ''; 
-                me.squad.forEach(p => {
-                    const flag = p.isOverseas ? '✈️' : '🇮🇳';
-                    squadList.innerHTML += `<li style="padding: 10px 0; border-bottom: 1px solid #333; display: flex; justify-content: space-between; color: #fff;"><span><strong style="color:var(--gold);">${p.name}</strong> <span style="font-size:0.85em; color:var(--text-muted);">(${p.role})</span></span><span>${flag}</span></li>`;
-                });
-            }
-        }
-    });
-
-    socket.on('playerUnsold', () => {
-        document.getElementById('card-bg').style.background = '#3a1111'; 
-        document.getElementById('card-bg').style.borderColor = '#ff073a';
-        document.getElementById('player-name').innerText = `UNSOLD!`;
-    });
-
-    socket.on('auctionEnded', (leaderboardData) => {
-        auctionScreen.classList.add('hidden'); chatContainer.classList.add('hidden'); resultsScreen.classList.remove('hidden');
-        const board = document.getElementById('leaderboard-container'); board.innerHTML = ''; 
-        leaderboardData.forEach((team, index) => {
-            let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🎗️';
-            board.innerHTML += `
-            <div style="background: #111; border: 2px solid #333; border-radius: 8px; padding: 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="text-align: left;">
-                    <h2 style="margin: 0; color: var(--text-main);">${medal} ${team.name}</h2>
-                    <p style="margin: 0; color: var(--text-muted);">Players Bought: ${team.squadSize}</p>
-                </div>
-                <div style="background: var(--gold); color: #000; padding: 10px 15px; border-radius: 5px; font-size: 1.5em; font-weight: 800;">${team.score}/100</div>
-            </div>`;
-        });
-    });
-
-    document.getElementById('send-chat-btn').addEventListener('click', sendChat);
-    document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
-
-    function sendChat() {
-        const input = document.getElementById('chat-input');
-        if(input.value.trim() !== "" && myRoomCode !== "") {
-            socket.emit('sendChatMessage', { roomCode: myRoomCode, message: input.value });
-            input.value = ""; 
-        }
-    }
-
-    socket.on('receiveChatMessage', (data) => {
-        const chatBox = document.getElementById('chat-messages');
-        chatBox.innerHTML += `<div style="margin-bottom: 8px;"><strong style="color:var(--gold);">${data.sender}:</strong> <span style="color:#fff;">${data.message}</span></div>`;
-        chatBox.scrollTop = chatBox.scrollHeight; 
-    });
+    socket.on('timerUpdate', t => document.getElementById('timer').innerText = t);
+    socket.on('bidUpdated', d => { document.getElementById('c-bid').innerText = d.bidAmount; document.getElementById('c-bidder').innerText = d.bidderName; });
+    socket.on('auctionPaused', () => { document.getElementById('timer').innerText = "PAUSED"; document.getElementById('pause-btn').classList.add('hidden'); document.getElementById('resume-btn').classList.remove('hidden'); });
+    socket.on('auctionResumed', () => { document.getElementById('pause-btn').classList.remove('hidden'); document.getElementById('resume-btn').classList.add('hidden'); });
 </script>
 </body>
 </html>
