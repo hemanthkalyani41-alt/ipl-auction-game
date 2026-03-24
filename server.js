@@ -8,7 +8,6 @@ const fs = require('fs');
 const { initializeApp } = require('firebase/app'); 
 const { getDatabase, ref, push, serverTimestamp } = require('firebase/database'); 
 
-// YOUR EXACT FIREBASE KEYS
 const firebaseConfig = {
   apiKey: "AIzaSyDX45NbE2mSo6NVnh2uvCK0BaBoccGy-ss",
   authDomain: "ipl-auction-game-d1cab.firebaseapp.com",
@@ -23,7 +22,6 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp); 
 
-// Server Setup
 const app = express();
 app.use(cors());
 app.use(express.static(__dirname)); 
@@ -60,14 +58,9 @@ async function finishAuction(roomCode) {
     leaderboard.sort((a, b) => b.score - a.score);
     io.to(roomCode).emit('auctionEnded', leaderboard);
 
-    // Save to Firebase Realtime Database
     try {
         const matchRef = ref(db, 'match_history');
-        await push(matchRef, {
-            roomCode: roomCode,
-            results: leaderboard,
-            timestamp: serverTimestamp()
-        });
+        await push(matchRef, { roomCode: roomCode, results: leaderboard, timestamp: serverTimestamp() });
         console.log(`✅ Match ${roomCode} saved to Firebase!`);
     } catch (e) {
         console.error("❌ Error adding document: ", e);
@@ -77,18 +70,21 @@ async function finishAuction(roomCode) {
 function nextPlayer(roomCode) {
     const room = activeRooms[roomCode];
     room.isSelling = false; 
+    room.bidHistory = []; // Reset bid history for the new player
     if (room.availablePlayers.length === 0) { finishAuction(roomCode); return; }
+    
     room.currentPlayer = room.availablePlayers.shift();
     room.currentBid = room.currentPlayer.basePrice;
     room.highestBidder = null;
     io.to(roomCode).emit('newPlayerUp', { player: room.currentPlayer });
-    startTimer(roomCode);
+    startTimer(roomCode, false);
 }
 
-function startTimer(roomCode) {
+// UPDATE: Timer can now be resumed from where it paused
+function startTimer(roomCode, isResume = false) {
     const room = activeRooms[roomCode];
     if (room.timerInterval) clearInterval(room.timerInterval);
-    room.timeLeft = 15; 
+    if (!isResume) room.timeLeft = 15; 
     io.to(roomCode).emit('timerUpdate', room.timeLeft);
     room.timerInterval = setInterval(() => {
         room.timeLeft--;
@@ -109,13 +105,27 @@ function sellPlayer(roomCode) {
 }
 
 io.on('connection', (socket) => {
+  
+  // UPDATE: Filtering the Player Pool based on selected Format
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const shuffled = [...playersData].sort(() => Math.random() - 0.5);
-    activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, settings: settings };
+    
+    // Apply Format Filters
+    let pool = [...playersData];
+    if (settings.format === 'tier1') pool = pool.filter(p => p.hiddenRating >= 90);
+    if (settings.format === 'indian') pool = pool.filter(p => !p.isOverseas);
+    if (settings.format === 'overseas') pool = pool.filter(p => p.isOverseas);
+    
+    const shuffled = pool.sort(() => Math.random() - 0.5);
+    
+    activeRooms[roomCode] = { 
+        hostId: socket.id, users: [], availablePlayers: shuffled, 
+        auctionStarted: false, isSelling: false, bidHistory: [], settings: settings 
+    };
+    
     socket.join(roomCode);
     activeRooms[roomCode].users.push({ id: socket.id, name: 'Host', purseRemaining: settings.startingPurse, squad: [] });
-    socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
+    socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse, format: settings.format, poolSize: shuffled.length });
     io.to(roomCode).emit('updateLobby', activeRooms[roomCode].users);
   });
 
@@ -144,16 +154,59 @@ io.on('connection', (socket) => {
       }
   });
 
+  // UPDATE: Record Bid History so we can undo it
   socket.on('placeBid', (roomCode) => {
       const room = activeRooms[roomCode];
       if (!room || !room.auctionStarted || room.isSelling) return;
+      if (room.timerInterval === null) return; // Cant bid while paused
+      
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
+      
       let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 20;
       if ((user.purseRemaining * 100) >= newBid) {
-          room.currentBid = newBid; room.highestBidder = user;
+          // Save state before updating
+          room.bidHistory.push({ bidder: room.highestBidder, amount: room.currentBid });
+          
+          room.currentBid = newBid; 
+          room.highestBidder = user;
           io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name });
-          startTimer(roomCode);
+          startTimer(roomCode, false);
+      }
+  });
+
+  // HOST SUPERPOWER: Pause Auction
+  socket.on('pauseAuction', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (room && room.hostId === socket.id && !room.isSelling) {
+          clearInterval(room.timerInterval);
+          room.timerInterval = null; // Mark as paused
+          io.to(roomCode).emit('auctionPaused');
+      }
+  });
+
+  // HOST SUPERPOWER: Resume Auction
+  socket.on('resumeAuction', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (room && room.hostId === socket.id && !room.isSelling) {
+          startTimer(roomCode, true); // true = resume from current time
+          io.to(roomCode).emit('auctionResumed');
+      }
+  });
+
+  // HOST SUPERPOWER: Undo Last Bid
+  socket.on('undoBid', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (room && room.hostId === socket.id && !room.isSelling && room.bidHistory.length > 0) {
+          const previousState = room.bidHistory.pop();
+          room.currentBid = previousState.amount;
+          room.highestBidder = previousState.bidder;
+          
+          io.to(roomCode).emit('bidUpdated', { 
+              bidAmount: room.currentBid, 
+              bidderName: room.highestBidder ? room.highestBidder.name : 'None' 
+          });
+          startTimer(roomCode, false); // Restart clock to 15s to give time to re-bid
       }
   });
 
