@@ -8,11 +8,11 @@ const fs = require('fs');
 const { initializeApp } = require('firebase/app'); 
 const { getDatabase, ref, push, serverTimestamp } = require('firebase/database'); 
 
-// YOUR EXACT FIREBASE KEYS (Only declared once!)
+// YOUR EXACT FIREBASE KEYS
 const firebaseConfig = {
   apiKey: "AIzaSyDX45NbE2mSo6NVnh2uvCK0BaBoccGy-ss",
   authDomain: "ipl-auction-game-d1cab.firebaseapp.com",
-  databaseURL: "https://ipl-auction-game-d1cab-default-rtdb.asia-southeast1.firebasedatabase.app", // <--- ADD THIS LINE!
+  databaseURL: "https://ipl-auction-game-d1cab-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "ipl-auction-game-d1cab",
   storageBucket: "ipl-auction-game-d1cab.firebasestorage.app",
   messagingSenderId: "178910298039",
