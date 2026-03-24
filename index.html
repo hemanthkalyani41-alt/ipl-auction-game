@@ -3,103 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPL Mega Auction</title>
+    <title>IPL Mega Auction Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e0f2fe; text-align: center; padding: 50px; margin: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
-        h1 { color: #1e3a8a; font-size: 2.5em; margin-bottom: 5px;}
-        h3 { color: #334155; margin-top: 0; }
-        button { background-color: #2563eb; color: white; border: none; padding: 12px 24px; margin: 10px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
-        button:hover { background-color: #1d4ed8; transform: translateY(-2px); }
-        input { padding: 10px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; }
-        .settings-box { background-color: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; }
-        .hidden { display: none !important; }
-        #display-room-code { color: #ea580c; letter-spacing: 2px; font-size: 1.5em;}
-        .player-card { background: #f1f5f9; padding: 20px; border-radius: 10px; border: 2px solid #cbd5e1; margin-bottom: 20px; transition: 0.3s;}
-        .bid-dashboard { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;}
-        #my-squad-list::-webkit-scrollbar, #chat-messages::-webkit-scrollbar { width: 6px; }
-        #my-squad-list::-webkit-scrollbar-thumb, #chat-messages::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .rank-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-        .score-badge { background: #10b981; color: white; padding: 10px 15px; border-radius: 5px; font-size: 1.5em; font-weight: bold; }
+        :root {
+            --bg-color: #0d0d0d; /* Matte Black */
+            --card-bg: #1a1a1a;
+            --gold: #D4AF37;
+            --gold-hover: #f3c623;
+            --neon-red: #ff073a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main);
+            text-align: center; 
+            margin: 0; 
+            padding-top: 80px; /* Space for navbar */
+        }
+
+        /* The R1 Carbon Fibre Menu Bar */
+        .navbar {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background: linear-gradient(135deg, #1f1f1f 25%, #141414 25%, #141414 50%, #1f1f1f 50%, #1f1f1f 75%, #141414 75%, #141414 100%);
+            background-size: 10px 10px;
+            border-bottom: 2px solid var(--gold);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 30px; box-sizing: border-box; z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+        }
+        .navbar .logo { font-size: 1.5em; font-weight: 800; color: var(--gold); letter-spacing: 1px;}
+        .navbar .stats { font-weight: 600; font-size: 1.1em; }
+        .navbar .stats span { margin-left: 20px; color: var(--text-main); }
+
+        .container { 
+            max-width: 650px; margin: 0 auto 30px auto; 
+            background: var(--card-bg); padding: 30px; 
+            border-radius: 12px; border-top: 3px solid var(--neon-red);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+
+        h1 { color: var(--text-main); font-size: 2.5em; margin-bottom: 5px; font-weight: 800;}
+        h3 { color: var(--text-muted); margin-top: 0; font-weight: 400;}
         
-        /* New Image Style */
-        .player-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid #1e3a8a; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); object-fit: cover; background: #fff;}
+        /* The Float & Glow Button Effect */
+        button { 
+            background-color: var(--gold); color: #000; 
+            border: none; padding: 15px 25px; margin: 10px; 
+            border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 800; 
+            text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.3s ease; 
+        }
+        button:hover { 
+            background-color: var(--text-main); 
+            transform: translateY(-4px); 
+            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4); 
+        }
+        
+        input { padding: 12px; font-size: 16px; border: 1px solid #333; border-radius: 6px; text-align: center; background: #222; color: #fff; font-family: 'Montserrat', sans-serif;}
+        
+        .hidden { display: none !important; }
+        #display-room-code { color: var(--gold); letter-spacing: 3px; font-size: 1.8em;}
+        
+        /* The Player Card Float Effect */
+        .player-card { 
+            background: #222; padding: 30px; border-radius: 10px; 
+            border: 1px solid #333; margin-bottom: 20px; 
+            transition: all 0.4s ease;
+        }
+        .player-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(212, 175, 55, 0.15);
+            border-color: var(--gold);
+        }
+
+        .player-avatar { 
+            width: 180px; height: 180px; border-radius: 15px; 
+            border: 3px solid var(--gold); margin-bottom: 15px; 
+            box-shadow: 0 8px 15px rgba(0,0,0,0.5); object-fit: cover; background: #111;
+        }
+
+        .bid-dashboard { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #111; padding: 20px; border-radius: 10px; border: 1px solid #333;}
+        
+        #chat-messages::-webkit-scrollbar, #my-squad-list::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb, #my-squad-list::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
     </style>
 </head>
 <body>
 
+<nav class="navbar">
+    <div class="logo">🏏 PRO AUCTION</div>
+    <div class="stats hidden" id="nav-stats">
+        <span>Room: <strong id="nav-room-code" style="color: var(--gold);">---</strong></span>
+        <span>Purse: ₹<strong id="nav-purse" style="color: var(--neon-red);">0</strong> Cr</span>
+    </div>
+</nav>
+
 <div class="container" id="home-screen">
-    <h1>🏏 IPL Mega Auction</h1>
-    <div class="settings-box">
+    <h1>FRANCHISE LOGIN</h1>
+    <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
         <h3>Host a New Game</h3>
         <label>Purse (Cr): </label> <input type="number" id="purse-input" value="100" style="width: 80px;"><br><br>
         <button id="create-btn">Create Private Room</button>
     </div>
-    <div class="settings-box">
+    <div style="background: #111; padding: 20px; border-radius: 8px;">
         <h3>Join Existing Game</h3>
         <input type="text" id="room-code-input" placeholder="Enter Code">
-        <button id="join-btn" style="background-color: #10b981;">Join Room</button>
+        <button id="join-btn" style="background-color: var(--text-main); color: #000;">Join Room</button>
     </div>
 </div>
 
 <div class="container hidden" id="lobby-screen">
-    <h1>Waiting Lobby</h1>
+    <h1>VIP LOBBY</h1>
     <h2>Room Code: <span id="display-room-code">---</span></h2>
-    <div class="settings-box">
-        <ul id="players-list" style="list-style-type: none; padding: 0; font-size: 1.2em; color: #334155;"></ul>
+    <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <ul id="players-list" style="list-style-type: none; padding: 0; font-size: 1.2em; color: var(--gold);"></ul>
     </div>
-    <button id="start-auction-btn" class="hidden" style="background-color: #ef4444; width: 100%;">START AUCTION</button>
+    <button id="start-auction-btn" class="hidden" style="background-color: var(--neon-red); color: white; width: 100%;">START MEGA AUCTION</button>
 </div>
 
 <div class="container hidden" id="auction-screen">
     <div class="player-card" id="card-bg">
         <img id="player-image" class="player-avatar" src="" alt="Player Avatar">
         
-        <h1 id="player-name" style="color: #0f172a; margin: 0; font-size: 2.5em;">Player Name</h1>
-        <h2 id="player-role-country" style="color: #64748b; margin-top: 5px;">Role | Country</h2>
-        <h2 style="color: #b91c1c;">Base Price: ₹<span id="player-base-price">0</span> Lakhs</h2>
+        <h1 id="player-name" style="margin: 0; font-size: 2.8em; text-transform: uppercase;">Player Name</h1>
+        <h2 id="player-role-country" style="color: var(--text-muted); margin-top: 5px;">Role | Country</h2>
+        <h2 style="color: var(--gold);">Base Price: ₹<span id="player-base-price">0</span> Lakhs</h2>
     </div>
     
     <div class="bid-dashboard">
         <div style="text-align: left;">
-            <p style="margin: 0; font-weight: bold;">Current Bidder:</p>
-            <h2 id="current-bidder" style="margin: 0; color: #1e3a8a;">None</h2>
-            <h2 style="margin: 0; color: #ea580c;">₹<span id="current-bid">0</span> L</h2>
+            <p style="margin: 0; font-weight: 600; color: var(--text-muted);">Current Bidder:</p>
+            <h2 id="current-bidder" style="margin: 0; color: var(--text-main);">None</h2>
+            <h2 style="margin: 0; color: var(--gold);">₹<span id="current-bid">0</span> L</h2>
         </div>
         <div style="text-align: right;">
-            <h1 id="timer" style="font-size: 3.5em; color: #ef4444; margin: 0;">15</h1>
+            <h1 id="timer" style="font-size: 4em; color: var(--neon-red); margin: 0; text-shadow: 0 0 10px rgba(255, 7, 58, 0.4);">15</h1>
         </div>
     </div>
 
-    <button id="bid-btn" style="background-color: #f59e0b; width: 100%; font-size: 1.5em; padding: 15px;">PLACE BID</button>
+    <button id="bid-btn" style="width: 100%; font-size: 1.8em; padding: 20px; background: linear-gradient(90deg, #D4AF37, #f3c623);">PLACE BID</button>
     
-    <div style="margin-top: 20px; text-align: left; background: #e0f2fe; padding: 15px; border-radius: 8px;">
-        <h3 style="margin: 0; color: #0369a1;">💰 Your Purse: ₹<span id="my-purse">0</span> Cr</h3>
-    </div>
-
-    <div style="margin-top: 15px; text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;">
-        <h3 style="margin: 0 0 10px 0;">📋 My Squad (<span id="squad-count">0</span>)</h3>
+    <div style="margin-top: 20px; text-align: left; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+        <h3 style="margin: 0 0 10px 0; color: var(--gold);">📋 My Squad (<span id="squad-count">0</span>)</h3>
         <ul id="my-squad-list" style="list-style-type: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;"></ul>
     </div>
 
-    <button id="end-early-btn" class="hidden" style="background: transparent; color: #94a3b8; font-size: 0.9em; margin-top: 20px; border: 1px solid #cbd5e1;">End Auction Early</button>
+    <button id="end-early-btn" class="hidden" style="background: transparent; color: var(--text-muted); font-size: 0.8em; margin-top: 20px; border: 1px solid #333;">End Auction Early</button>
 </div>
 
-<div class="container hidden" id="chat-container" style="margin-top: 20px; padding: 15px;">
-    <h3 style="margin: 0 0 10px 0; text-align: left; color: #1e293b;">💬 Franchise Chat</h3>
-    <div id="chat-messages" style="height: 120px; overflow-y: auto; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; text-align: left; font-size: 0.95em; margin-bottom: 10px;">
-        </div>
+<div class="container hidden" id="chat-container" style="padding: 15px;">
+    <h3 style="margin: 0 0 10px 0; text-align: left; color: var(--gold);">💬 Comms Channel</h3>
+    <div id="chat-messages" style="height: 120px; overflow-y: auto; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px; text-align: left; font-size: 0.95em; margin-bottom: 10px;"></div>
     <div style="display: flex; gap: 10px;">
-        <input type="text" id="chat-input" placeholder="Type a message..." style="flex-grow: 1; padding: 10px;">
-        <button id="send-chat-btn" style="margin: 0; background-color: #10b981; padding: 10px 20px;">Send</button>
+        <input type="text" id="chat-input" placeholder="Type a message..." style="flex-grow: 1;">
+        <button id="send-chat-btn" style="margin: 0; padding: 10px 20px;">Send</button>
     </div>
 </div>
 
 <div class="container hidden" id="results-screen">
-    <h1 style="color: #047857;">🏆 Final Results</h1>
-    <p style="color: #64748b; margin-bottom: 20px;">Team ratings based on balance and star power!</p>
+    <h1 style="color: var(--gold);">🏆 FINAL RANKINGS</h1>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Based on squad balance and star power.</p>
     <div id="leaderboard-container"></div>
-    <button onclick="location.reload()" style="margin-top: 30px; background-color: #0ea5e9;">Play Again</button>
+    <button onclick="location.reload()" style="margin-top: 30px;">Play Again</button>
 </div>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -112,17 +181,19 @@
     const auctionScreen = document.getElementById('auction-screen');
     const resultsScreen = document.getElementById('results-screen');
     const chatContainer = document.getElementById('chat-container');
+    const navStats = document.getElementById('nav-stats');
     
     document.getElementById('create-btn').addEventListener('click', () => {
         socket.emit('createRoom', { startingPurse: document.getElementById('purse-input').value });
     });
 
     socket.on('roomCreated', (data) => {
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden');
+        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden'); navStats.classList.remove('hidden');
         document.getElementById('display-room-code').innerText = data.code;
+        document.getElementById('nav-room-code').innerText = data.code;
+        document.getElementById('nav-purse').innerText = data.purse;
         document.getElementById('start-auction-btn').classList.remove('hidden');
         document.getElementById('end-early-btn').classList.remove('hidden');
-        document.getElementById('my-purse').innerText = data.purse;
         myRoomCode = data.code;
     });
 
@@ -131,15 +202,20 @@
     });
 
     socket.on('roomJoined', (data) => {
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden');
+        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden'); navStats.classList.remove('hidden');
         document.getElementById('display-room-code').innerText = data.code;
-        document.getElementById('my-purse').innerText = data.purse;
+        document.getElementById('nav-room-code').innerText = data.code;
+        document.getElementById('nav-purse').innerText = data.purse;
         myRoomCode = data.code;
     });
 
     socket.on('updateLobby', (users) => {
         const list = document.getElementById('players-list'); list.innerHTML = '';
-        users.forEach(u => { list.innerHTML += `<li>${u.name === 'Host' ? '👑 You (Host)' : `👤 ${u.name}`}</li>`; });
+        users.forEach(u => { 
+            let icon = u.name === 'Host' ? '👑' : '👤';
+            let displayName = u.id === socket.id ? `You (${u.name})` : u.name;
+            list.innerHTML += `<li style="padding: 5px 0;">${icon} ${displayName}</li>`; 
+        });
     });
 
     document.getElementById('start-auction-btn').addEventListener('click', () => { socket.emit('startAuction', myRoomCode); });
@@ -148,11 +224,17 @@
 
     socket.on('newPlayerUp', (data) => {
         lobbyScreen.classList.add('hidden'); auctionScreen.classList.remove('hidden');
-        document.getElementById('card-bg').style.background = '#f1f5f9'; 
+        document.getElementById('card-bg').style.background = '#222'; 
+        document.getElementById('card-bg').style.borderColor = '#333';
         
-        // NEW: Generate a dynamic profile picture based on their name!
-        const encodedName = encodeURIComponent(data.player.name);
-        document.getElementById('player-image').src = `https://ui-avatars.com/api/?name=${encodedName}&size=150&background=0f172a&color=fff&bold=true`;
+        // VISUALS LOGIC: Check for real photo, fallback to avatar
+        const imgElement = document.getElementById('player-image');
+        if (data.player.image && data.player.image !== "") {
+            imgElement.src = data.player.image;
+        } else {
+            const encodedName = encodeURIComponent(data.player.name);
+            imgElement.src = `https://ui-avatars.com/api/?name=${encodedName}&size=180&background=D4AF37&color=000&bold=true`;
+        }
         
         document.getElementById('player-name').innerText = data.player.name;
         document.getElementById('player-role-country').innerText = `${data.player.role} | ${data.player.country}`;
@@ -169,57 +251,49 @@
     });
 
     socket.on('playerSold', (data) => {
-        document.getElementById('card-bg').style.background = '#dcfce7'; 
+        document.getElementById('card-bg').style.background = '#1a2e1a'; // Dark green
+        document.getElementById('card-bg').style.borderColor = '#10b981';
         document.getElementById('player-name').innerText = `SOLD TO ${data.winnerName.toUpperCase()}!`;
         
         const me = data.users.find(u => u.id === socket.id);
         if (me) {
-            document.getElementById('my-purse').innerText = me.purseRemaining.toFixed(2);
+            document.getElementById('nav-purse').innerText = me.purseRemaining.toFixed(2);
             document.getElementById('squad-count').innerText = me.squad.length;
             const squadList = document.getElementById('my-squad-list');
             if (me.squad.length > 0) {
                 squadList.innerHTML = ''; 
                 me.squad.forEach(p => {
                     const flag = p.isOverseas ? '✈️' : '🇮🇳';
-                    squadList.innerHTML += `<li style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between;"><span><strong>${p.name}</strong> <span style="font-size:0.85em;">(${p.role})</span></span><span>${flag}</span></li>`;
+                    squadList.innerHTML += `<li style="padding: 10px 0; border-bottom: 1px solid #333; display: flex; justify-content: space-between; color: #fff;"><span><strong style="color:var(--gold);">${p.name}</strong> <span style="font-size:0.85em; color:var(--text-muted);">(${p.role})</span></span><span>${flag}</span></li>`;
                 });
             }
         }
     });
 
     socket.on('playerUnsold', () => {
-        document.getElementById('card-bg').style.background = '#fee2e2'; 
+        document.getElementById('card-bg').style.background = '#3a1111'; // Dark red
+        document.getElementById('card-bg').style.borderColor = var(--neon-red);
         document.getElementById('player-name').innerText = `UNSOLD!`;
     });
 
     socket.on('auctionEnded', (leaderboardData) => {
-        auctionScreen.classList.add('hidden');
-        chatContainer.classList.add('hidden'); // Hide chat at the end
-        resultsScreen.classList.remove('hidden');
-        
-        const board = document.getElementById('leaderboard-container');
-        board.innerHTML = ''; 
-
+        auctionScreen.classList.add('hidden'); chatContainer.classList.add('hidden'); resultsScreen.classList.remove('hidden');
+        const board = document.getElementById('leaderboard-container'); board.innerHTML = ''; 
         leaderboardData.forEach((team, index) => {
-            let medal = '';
-            if (index === 0) medal = '🥇';
-            if (index === 1) medal = '🥈';
-            if (index === 2) medal = '🥉';
-
+            let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🎗️';
             board.innerHTML += `
-            <div class="rank-card">
+            <div style="background: #111; border: 2px solid #333; border-radius: 8px; padding: 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                 <div style="text-align: left;">
-                    <h2 style="margin: 0; color: #0f172a;">${medal} ${team.name}</h2>
-                    <p style="margin: 0; color: #64748b;">Players Bought: ${team.squadSize}</p>
+                    <h2 style="margin: 0; color: var(--text-main);">${medal} ${team.name}</h2>
+                    <p style="margin: 0; color: var(--text-muted);">Players Bought: ${team.squadSize}</p>
                 </div>
-                <div class="score-badge">${team.score}/100</div>
+                <div style="background: var(--gold); color: #000; padding: 10px 15px; border-radius: 5px; font-size: 1.5em; font-weight: 800;">${team.score}/100</div>
             </div>`;
         });
     });
 
     socket.on('errorMsg', (msg) => { alert(msg); });
 
-    // --- NEW: CHAT LOGIC ---
     document.getElementById('send-chat-btn').addEventListener('click', sendChat);
     document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
 
@@ -227,18 +301,15 @@
         const input = document.getElementById('chat-input');
         if(input.value.trim() !== "" && myRoomCode !== "") {
             socket.emit('sendChatMessage', { roomCode: myRoomCode, message: input.value });
-            input.value = ""; // clear the box
+            input.value = ""; 
         }
     }
 
     socket.on('receiveChatMessage', (data) => {
         const chatBox = document.getElementById('chat-messages');
-        const isMe = data.sender === (document.getElementById('start-auction-btn').classList.contains('hidden') ? 'Player 2' : 'Host'); // Quick check, but visually it's fine either way
-        
-        chatBox.innerHTML += `<div style="margin-bottom: 5px;"><strong>${data.sender}:</strong> ${data.message}</div>`;
-        chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+        chatBox.innerHTML += `<div style="margin-bottom: 8px;"><strong style="color:var(--gold);">${data.sender}:</strong> <span style="color:#fff;">${data.message}</span></div>`;
+        chatBox.scrollTop = chatBox.scrollHeight; 
     });
-
 </script>
 </body>
 </html>
