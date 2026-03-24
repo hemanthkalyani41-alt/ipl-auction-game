@@ -149,4 +149,21 @@ io.on('connection', (socket) => {
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 20;
-      if ((user.purseRemaining * 100) >= newBid
+      if ((user.purseRemaining * 100) >= newBid) {
+          room.currentBid = newBid; room.highestBidder = user;
+          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name });
+          startTimer(roomCode);
+      }
+  });
+
+  socket.on('sendChatMessage', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room) {
+          const user = room.users.find(u => u.id === socket.id);
+          io.to(data.roomCode).emit('receiveChatMessage', { sender: user ? user.name : "Unknown", message: data.message });
+      }
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => { console.log(`🚀 Server on port ${PORT}`); });
