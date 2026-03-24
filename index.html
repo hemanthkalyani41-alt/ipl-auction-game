@@ -227,7 +227,6 @@
         document.getElementById('card-bg').style.background = '#222'; 
         document.getElementById('card-bg').style.borderColor = '#333';
         
-        // VISUALS LOGIC: Check for real photo, fallback to avatar
         const imgElement = document.getElementById('player-image');
         if (data.player.image && data.player.image !== "") {
             imgElement.src = data.player.image;
@@ -251,7 +250,7 @@
     });
 
     socket.on('playerSold', (data) => {
-        document.getElementById('card-bg').style.background = '#1a2e1a'; // Dark green
+        document.getElementById('card-bg').style.background = '#1a2e1a'; 
         document.getElementById('card-bg').style.borderColor = '#10b981';
         document.getElementById('player-name').innerText = `SOLD TO ${data.winnerName.toUpperCase()}!`;
         
@@ -271,8 +270,8 @@
     });
 
     socket.on('playerUnsold', () => {
-        document.getElementById('card-bg').style.background = '#3a1111'; // Dark red
-        document.getElementById('card-bg').style.borderColor = var(--neon-red);
+        document.getElementById('card-bg').style.background = '#3a1111'; 
+        document.getElementById('card-bg').style.borderColor = '#ff073a'; // <--- THIS IS THE FIX!
         document.getElementById('player-name').innerText = `UNSOLD!`;
     });
 
