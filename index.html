@@ -13,14 +13,17 @@
         button:hover { background-color: #1d4ed8; transform: translateY(-2px); }
         input { padding: 10px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; }
         .settings-box { background-color: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         #display-room-code { color: #ea580c; letter-spacing: 2px; font-size: 1.5em;}
         .player-card { background: #f1f5f9; padding: 20px; border-radius: 10px; border: 2px solid #cbd5e1; margin-bottom: 20px; transition: 0.3s;}
         .bid-dashboard { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;}
-        #my-squad-list::-webkit-scrollbar { width: 6px; }
-        #my-squad-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        #my-squad-list::-webkit-scrollbar, #chat-messages::-webkit-scrollbar { width: 6px; }
+        #my-squad-list::-webkit-scrollbar-thumb, #chat-messages::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .rank-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
         .score-badge { background: #10b981; color: white; padding: 10px 15px; border-radius: 5px; font-size: 1.5em; font-weight: bold; }
+        
+        /* New Image Style */
+        .player-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid #1e3a8a; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); object-fit: cover; background: #fff;}
     </style>
 </head>
 <body>
@@ -50,7 +53,9 @@
 
 <div class="container hidden" id="auction-screen">
     <div class="player-card" id="card-bg">
-        <h1 id="player-name" style="color: #0f172a; margin: 0; font-size: 3em;">Player Name</h1>
+        <img id="player-image" class="player-avatar" src="" alt="Player Avatar">
+        
+        <h1 id="player-name" style="color: #0f172a; margin: 0; font-size: 2.5em;">Player Name</h1>
         <h2 id="player-role-country" style="color: #64748b; margin-top: 5px;">Role | Country</h2>
         <h2 style="color: #b91c1c;">Base Price: ₹<span id="player-base-price">0</span> Lakhs</h2>
     </div>
@@ -80,6 +85,16 @@
     <button id="end-early-btn" class="hidden" style="background: transparent; color: #94a3b8; font-size: 0.9em; margin-top: 20px; border: 1px solid #cbd5e1;">End Auction Early</button>
 </div>
 
+<div class="container hidden" id="chat-container" style="margin-top: 20px; padding: 15px;">
+    <h3 style="margin: 0 0 10px 0; text-align: left; color: #1e293b;">💬 Franchise Chat</h3>
+    <div id="chat-messages" style="height: 120px; overflow-y: auto; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; text-align: left; font-size: 0.95em; margin-bottom: 10px;">
+        </div>
+    <div style="display: flex; gap: 10px;">
+        <input type="text" id="chat-input" placeholder="Type a message..." style="flex-grow: 1; padding: 10px;">
+        <button id="send-chat-btn" style="margin: 0; background-color: #10b981; padding: 10px 20px;">Send</button>
+    </div>
+</div>
+
 <div class="container hidden" id="results-screen">
     <h1 style="color: #047857;">🏆 Final Results</h1>
     <p style="color: #64748b; margin-bottom: 20px;">Team ratings based on balance and star power!</p>
@@ -89,7 +104,6 @@
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    // CRITICAL: Empty parentheses tell socket.io to connect to the active website URL!
     const socket = io(); 
     let myRoomCode = "";
 
@@ -97,13 +111,14 @@
     const lobbyScreen = document.getElementById('lobby-screen');
     const auctionScreen = document.getElementById('auction-screen');
     const resultsScreen = document.getElementById('results-screen');
+    const chatContainer = document.getElementById('chat-container');
     
     document.getElementById('create-btn').addEventListener('click', () => {
         socket.emit('createRoom', { startingPurse: document.getElementById('purse-input').value });
     });
 
     socket.on('roomCreated', (data) => {
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden');
+        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden');
         document.getElementById('display-room-code').innerText = data.code;
         document.getElementById('start-auction-btn').classList.remove('hidden');
         document.getElementById('end-early-btn').classList.remove('hidden');
@@ -116,7 +131,7 @@
     });
 
     socket.on('roomJoined', (data) => {
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden');
+        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden');
         document.getElementById('display-room-code').innerText = data.code;
         document.getElementById('my-purse').innerText = data.purse;
         myRoomCode = data.code;
@@ -134,6 +149,11 @@
     socket.on('newPlayerUp', (data) => {
         lobbyScreen.classList.add('hidden'); auctionScreen.classList.remove('hidden');
         document.getElementById('card-bg').style.background = '#f1f5f9'; 
+        
+        // NEW: Generate a dynamic profile picture based on their name!
+        const encodedName = encodeURIComponent(data.player.name);
+        document.getElementById('player-image').src = `https://ui-avatars.com/api/?name=${encodedName}&size=150&background=0f172a&color=fff&bold=true`;
+        
         document.getElementById('player-name').innerText = data.player.name;
         document.getElementById('player-role-country').innerText = `${data.player.role} | ${data.player.country}`;
         document.getElementById('player-base-price').innerText = data.player.basePrice;
@@ -174,6 +194,7 @@
 
     socket.on('auctionEnded', (leaderboardData) => {
         auctionScreen.classList.add('hidden');
+        chatContainer.classList.add('hidden'); // Hide chat at the end
         resultsScreen.classList.remove('hidden');
         
         const board = document.getElementById('leaderboard-container');
@@ -197,6 +218,27 @@
     });
 
     socket.on('errorMsg', (msg) => { alert(msg); });
+
+    // --- NEW: CHAT LOGIC ---
+    document.getElementById('send-chat-btn').addEventListener('click', sendChat);
+    document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
+
+    function sendChat() {
+        const input = document.getElementById('chat-input');
+        if(input.value.trim() !== "" && myRoomCode !== "") {
+            socket.emit('sendChatMessage', { roomCode: myRoomCode, message: input.value });
+            input.value = ""; // clear the box
+        }
+    }
+
+    socket.on('receiveChatMessage', (data) => {
+        const chatBox = document.getElementById('chat-messages');
+        const isMe = data.sender === (document.getElementById('start-auction-btn').classList.contains('hidden') ? 'Player 2' : 'Host'); // Quick check, but visually it's fine either way
+        
+        chatBox.innerHTML += `<div style="margin-bottom: 5px;"><strong>${data.sender}:</strong> ${data.message}</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+    });
+
 </script>
 </body>
 </html>
