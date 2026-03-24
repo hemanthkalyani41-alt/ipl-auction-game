@@ -1,244 +1,189 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPL Mega Auction</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e0f2fe; text-align: center; padding: 50px; margin: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
-        h1 { color: #1e3a8a; font-size: 2.5em; margin-bottom: 5px;}
-        h3 { color: #334155; margin-top: 0; }
-        button { background-color: #2563eb; color: white; border: none; padding: 12px 24px; margin: 10px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
-        button:hover { background-color: #1d4ed8; transform: translateY(-2px); }
-        input { padding: 10px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; }
-        .settings-box { background-color: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; }
-        .hidden { display: none !important; }
-        #display-room-code { color: #ea580c; letter-spacing: 2px; font-size: 1.5em;}
-        .player-card { background: #f1f5f9; padding: 20px; border-radius: 10px; border: 2px solid #cbd5e1; margin-bottom: 20px; transition: 0.3s;}
-        .bid-dashboard { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;}
-        #my-squad-list::-webkit-scrollbar, #chat-messages::-webkit-scrollbar { width: 6px; }
-        #my-squad-list::-webkit-scrollbar-thumb, #chat-messages::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .rank-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-        .score-badge { background: #10b981; color: white; padding: 10px 15px; border-radius: 5px; font-size: 1.5em; font-weight: bold; }
-        
-        /* New Image Style */
-        .player-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid #1e3a8a; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); object-fit: cover; background: #fff;}
-    </style>
-</head>
-<body>
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const fs = require('fs');
 
-<div class="container" id="home-screen">
-    <h1>🏏 IPL Mega Auction</h1>
-    <div class="settings-box">
-        <h3>Host a New Game</h3>
-        <label>Purse (Cr): </label> <input type="number" id="purse-input" value="100" style="width: 80px;"><br><br>
-        <button id="create-btn">Create Private Room</button>
-    </div>
-    <div class="settings-box">
-        <h3>Join Existing Game</h3>
-        <input type="text" id="room-code-input" placeholder="Enter Code">
-        <button id="join-btn" style="background-color: #10b981;">Join Room</button>
-    </div>
-</div>
+const app = express();
+app.use(cors());
+app.use(express.static(__dirname)); 
 
-<div class="container hidden" id="lobby-screen">
-    <h1>Waiting Lobby</h1>
-    <h2>Room Code: <span id="display-room-code">---</span></h2>
-    <div class="settings-box">
-        <ul id="players-list" style="list-style-type: none; padding: 0; font-size: 1.2em; color: #334155;"></ul>
-    </div>
-    <button id="start-auction-btn" class="hidden" style="background-color: #ef4444; width: 100%;">START AUCTION</button>
-</div>
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
-<div class="container hidden" id="auction-screen">
-    <div class="player-card" id="card-bg">
-        <img id="player-image" class="player-avatar" src="" alt="Player Avatar">
-        
-        <h1 id="player-name" style="color: #0f172a; margin: 0; font-size: 2.5em;">Player Name</h1>
-        <h2 id="player-role-country" style="color: #64748b; margin-top: 5px;">Role | Country</h2>
-        <h2 style="color: #b91c1c;">Base Price: ₹<span id="player-base-price">0</span> Lakhs</h2>
-    </div>
+const playersData = JSON.parse(fs.readFileSync('./players.json', 'utf8'));
+const activeRooms = {};
+
+// --- THE TEAM RATING ALGORITHM ---
+function calculateTeamRating(squad) {
+    if (squad.length === 0) return 0;
+    let totalRating = 0;
+    let hasWk = false;
+    let bowlingOptions = 0;
+
+    squad.forEach(p => {
+        totalRating += p.hiddenRating;
+        if (p.role === 'Wicketkeeper') hasWk = true;
+        if (p.role === 'Bowler' || p.role === 'All-Rounder') bowlingOptions++;
+    });
+
+    let finalScore = totalRating / squad.length;
+    if (!hasWk) finalScore -= 15; 
+    if (bowlingOptions < 5) finalScore -= 10; 
+
+    finalScore = Math.max(0, Math.min(100, finalScore));
+    return Math.round(finalScore);
+}
+
+function finishAuction(roomCode) {
+    const room = activeRooms[roomCode];
+    if(!room) return;
+
+    let leaderboard = room.users.map(user => {
+        return { name: user.name, score: calculateTeamRating(user.squad), squadSize: user.squad.length };
+    });
+
+    leaderboard.sort((a, b) => b.score - a.score);
+    io.to(roomCode).emit('auctionEnded', leaderboard);
+}
+
+// --- HELPER FUNCTIONS ---
+function nextPlayer(roomCode) {
+    const room = activeRooms[roomCode];
+    room.isSelling = false; 
+
+    if (room.availablePlayers.length === 0) {
+        finishAuction(roomCode);
+        return;
+    }
     
-    <div class="bid-dashboard">
-        <div style="text-align: left;">
-            <p style="margin: 0; font-weight: bold;">Current Bidder:</p>
-            <h2 id="current-bidder" style="margin: 0; color: #1e3a8a;">None</h2>
-            <h2 style="margin: 0; color: #ea580c;">₹<span id="current-bid">0</span> L</h2>
-        </div>
-        <div style="text-align: right;">
-            <h1 id="timer" style="font-size: 3.5em; color: #ef4444; margin: 0;">15</h1>
-        </div>
-    </div>
+    room.currentPlayer = room.availablePlayers.shift();
+    room.currentBid = room.currentPlayer.basePrice;
+    room.highestBidder = null;
 
-    <button id="bid-btn" style="background-color: #f59e0b; width: 100%; font-size: 1.5em; padding: 15px;">PLACE BID</button>
+    io.to(roomCode).emit('newPlayerUp', { player: room.currentPlayer });
+    startTimer(roomCode);
+}
+
+function startTimer(roomCode) {
+    const room = activeRooms[roomCode];
+    if (room.timerInterval) clearInterval(room.timerInterval);
     
-    <div style="margin-top: 20px; text-align: left; background: #e0f2fe; padding: 15px; border-radius: 8px;">
-        <h3 style="margin: 0; color: #0369a1;">💰 Your Purse: ₹<span id="my-purse">0</span> Cr</h3>
-    </div>
+    room.timeLeft = 15; 
+    io.to(roomCode).emit('timerUpdate', room.timeLeft);
 
-    <div style="margin-top: 15px; text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;">
-        <h3 style="margin: 0 0 10px 0;">📋 My Squad (<span id="squad-count">0</span>)</h3>
-        <ul id="my-squad-list" style="list-style-type: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;"></ul>
-    </div>
-
-    <button id="end-early-btn" class="hidden" style="background: transparent; color: #94a3b8; font-size: 0.9em; margin-top: 20px; border: 1px solid #cbd5e1;">End Auction Early</button>
-</div>
-
-<div class="container hidden" id="chat-container" style="margin-top: 20px; padding: 15px;">
-    <h3 style="margin: 0 0 10px 0; text-align: left; color: #1e293b;">💬 Franchise Chat</h3>
-    <div id="chat-messages" style="height: 120px; overflow-y: auto; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; text-align: left; font-size: 0.95em; margin-bottom: 10px;">
-        </div>
-    <div style="display: flex; gap: 10px;">
-        <input type="text" id="chat-input" placeholder="Type a message..." style="flex-grow: 1; padding: 10px;">
-        <button id="send-chat-btn" style="margin: 0; background-color: #10b981; padding: 10px 20px;">Send</button>
-    </div>
-</div>
-
-<div class="container hidden" id="results-screen">
-    <h1 style="color: #047857;">🏆 Final Results</h1>
-    <p style="color: #64748b; margin-bottom: 20px;">Team ratings based on balance and star power!</p>
-    <div id="leaderboard-container"></div>
-    <button onclick="location.reload()" style="margin-top: 30px; background-color: #0ea5e9;">Play Again</button>
-</div>
-
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script>
-    const socket = io(); 
-    let myRoomCode = "";
-
-    const homeScreen = document.getElementById('home-screen');
-    const lobbyScreen = document.getElementById('lobby-screen');
-    const auctionScreen = document.getElementById('auction-screen');
-    const resultsScreen = document.getElementById('results-screen');
-    const chatContainer = document.getElementById('chat-container');
-    
-    document.getElementById('create-btn').addEventListener('click', () => {
-        socket.emit('createRoom', { startingPurse: document.getElementById('purse-input').value });
-    });
-
-    socket.on('roomCreated', (data) => {
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden');
-        document.getElementById('display-room-code').innerText = data.code;
-        document.getElementById('start-auction-btn').classList.remove('hidden');
-        document.getElementById('end-early-btn').classList.remove('hidden');
-        document.getElementById('my-purse').innerText = data.purse;
-        myRoomCode = data.code;
-    });
-
-    document.getElementById('join-btn').addEventListener('click', () => {
-        socket.emit('joinRoom', document.getElementById('room-code-input').value);
-    });
-
-    socket.on('roomJoined', (data) => {
-        homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden');
-        document.getElementById('display-room-code').innerText = data.code;
-        document.getElementById('my-purse').innerText = data.purse;
-        myRoomCode = data.code;
-    });
-
-    socket.on('updateLobby', (users) => {
-        const list = document.getElementById('players-list'); list.innerHTML = '';
-        users.forEach(u => { list.innerHTML += `<li>${u.name === 'Host' ? '👑 You (Host)' : `👤 ${u.name}`}</li>`; });
-    });
-
-    document.getElementById('start-auction-btn').addEventListener('click', () => { socket.emit('startAuction', myRoomCode); });
-    document.getElementById('bid-btn').addEventListener('click', () => { socket.emit('placeBid', myRoomCode); });
-    document.getElementById('end-early-btn').addEventListener('click', () => { socket.emit('endAuctionEarly', myRoomCode); });
-
-    socket.on('newPlayerUp', (data) => {
-        lobbyScreen.classList.add('hidden'); auctionScreen.classList.remove('hidden');
-        document.getElementById('card-bg').style.background = '#f1f5f9'; 
+    room.timerInterval = setInterval(() => {
+        room.timeLeft--;
+        io.to(roomCode).emit('timerUpdate', room.timeLeft);
         
-        // NEW: Generate a dynamic profile picture based on their name!
-        const encodedName = encodeURIComponent(data.player.name);
-        document.getElementById('player-image').src = `https://ui-avatars.com/api/?name=${encodedName}&size=150&background=0f172a&color=fff&bold=true`;
-        
-        document.getElementById('player-name').innerText = data.player.name;
-        document.getElementById('player-role-country').innerText = `${data.player.role} | ${data.player.country}`;
-        document.getElementById('player-base-price').innerText = data.player.basePrice;
-        document.getElementById('current-bid').innerText = data.player.basePrice;
-        document.getElementById('current-bidder').innerText = "None";
-    });
-
-    socket.on('timerUpdate', (time) => { document.getElementById('timer').innerText = time; });
-
-    socket.on('bidUpdated', (data) => {
-        document.getElementById('current-bidder').innerText = data.bidderName;
-        document.getElementById('current-bid').innerText = data.bidAmount;
-    });
-
-    socket.on('playerSold', (data) => {
-        document.getElementById('card-bg').style.background = '#dcfce7'; 
-        document.getElementById('player-name').innerText = `SOLD TO ${data.winnerName.toUpperCase()}!`;
-        
-        const me = data.users.find(u => u.id === socket.id);
-        if (me) {
-            document.getElementById('my-purse').innerText = me.purseRemaining.toFixed(2);
-            document.getElementById('squad-count').innerText = me.squad.length;
-            const squadList = document.getElementById('my-squad-list');
-            if (me.squad.length > 0) {
-                squadList.innerHTML = ''; 
-                me.squad.forEach(p => {
-                    const flag = p.isOverseas ? '✈️' : '🇮🇳';
-                    squadList.innerHTML += `<li style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between;"><span><strong>${p.name}</strong> <span style="font-size:0.85em;">(${p.role})</span></span><span>${flag}</span></li>`;
-                });
-            }
+        if (room.timeLeft <= 0) {
+            clearInterval(room.timerInterval);
+            sellPlayer(roomCode);
         }
-    });
+    }, 1000);
+}
 
-    socket.on('playerUnsold', () => {
-        document.getElementById('card-bg').style.background = '#fee2e2'; 
-        document.getElementById('player-name').innerText = `UNSOLD!`;
-    });
-
-    socket.on('auctionEnded', (leaderboardData) => {
-        auctionScreen.classList.add('hidden');
-        chatContainer.classList.add('hidden'); // Hide chat at the end
-        resultsScreen.classList.remove('hidden');
+function sellPlayer(roomCode) {
+    const room = activeRooms[roomCode];
+    room.isSelling = true; 
+    
+    if (room.highestBidder) {
+        const winner = room.users.find(u => u.id === room.highestBidder.id);
+        if(winner) {
+           winner.purseRemaining -= (room.currentBid / 100); 
+           winner.squad.push(room.currentPlayer);
+        }
         
-        const board = document.getElementById('leaderboard-container');
-        board.innerHTML = ''; 
-
-        leaderboardData.forEach((team, index) => {
-            let medal = '';
-            if (index === 0) medal = '🥇';
-            if (index === 1) medal = '🥈';
-            if (index === 2) medal = '🥉';
-
-            board.innerHTML += `
-            <div class="rank-card">
-                <div style="text-align: left;">
-                    <h2 style="margin: 0; color: #0f172a;">${medal} ${team.name}</h2>
-                    <p style="margin: 0; color: #64748b;">Players Bought: ${team.squadSize}</p>
-                </div>
-                <div class="score-badge">${team.score}/100</div>
-            </div>`;
+        io.to(roomCode).emit('playerSold', {
+            winnerName: winner ? winner.name : 'Unknown',
+            amount: room.currentBid,
+            users: room.users 
         });
-    });
-
-    socket.on('errorMsg', (msg) => { alert(msg); });
-
-    // --- NEW: CHAT LOGIC ---
-    document.getElementById('send-chat-btn').addEventListener('click', sendChat);
-    document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
-
-    function sendChat() {
-        const input = document.getElementById('chat-input');
-        if(input.value.trim() !== "" && myRoomCode !== "") {
-            socket.emit('sendChatMessage', { roomCode: myRoomCode, message: input.value });
-            input.value = ""; // clear the box
-        }
+    } else {
+        io.to(roomCode).emit('playerUnsold');
     }
 
-    socket.on('receiveChatMessage', (data) => {
-        const chatBox = document.getElementById('chat-messages');
-        const isMe = data.sender === (document.getElementById('start-auction-btn').classList.contains('hidden') ? 'Player 2' : 'Host'); // Quick check, but visually it's fine either way
-        
-        chatBox.innerHTML += `<div style="margin-bottom: 5px;"><strong>${data.sender}:</strong> ${data.message}</div>`;
-        chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
-    });
+    setTimeout(() => { nextPlayer(roomCode); }, 3500);
+}
 
-</script>
-</body>
-</html>
+// --- SERVER CONNECTIONS ---
+io.on('connection', (socket) => {
+  socket.on('createRoom', (customSettings) => {
+    const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const shuffledPlayers = [...playersData].sort(() => Math.random() - 0.5);
+
+    activeRooms[roomCode] = {
+      hostId: socket.id,
+      settings: customSettings, 
+      users: [],
+      availablePlayers: shuffledPlayers, 
+      auctionStarted: false,
+      isSelling: false 
+    };
+
+    socket.join(roomCode);
+    activeRooms[roomCode].users.push({ id: socket.id, name: 'Host', purseRemaining: customSettings.startingPurse, squad: [] });
+    
+    socket.emit('roomCreated', { code: roomCode, purse: customSettings.startingPurse });
+    io.to(roomCode).emit('updateLobby', activeRooms[roomCode].users);
+  });
+
+  socket.on('joinRoom', (roomCode) => {
+    roomCode = roomCode.toUpperCase();
+    if (activeRooms[roomCode] && !activeRooms[roomCode].auctionStarted) {
+      socket.join(roomCode);
+      const startingMoney = activeRooms[roomCode].settings.startingPurse;
+      activeRooms[roomCode].users.push({ id: socket.id, name: `Player ${activeRooms[roomCode].users.length + 1}`, purseRemaining: startingMoney, squad: [] });
+      socket.emit('roomJoined', { code: roomCode, purse: startingMoney });
+      io.to(roomCode).emit('updateLobby', activeRooms[roomCode].users);
+    }
+  });
+
+  socket.on('startAuction', (roomCode) => {
+    if (activeRooms[roomCode] && activeRooms[roomCode].hostId === socket.id && !activeRooms[roomCode].auctionStarted) {
+        activeRooms[roomCode].auctionStarted = true;
+        nextPlayer(roomCode);
+    }
+  });
+
+  socket.on('endAuctionEarly', (roomCode) => {
+      if (activeRooms[roomCode] && activeRooms[roomCode].hostId === socket.id) {
+          if (activeRooms[roomCode].timerInterval) clearInterval(activeRooms[roomCode].timerInterval);
+          finishAuction(roomCode);
+      }
+  });
+
+  socket.on('placeBid', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (!room || !room.auctionStarted || !room.currentPlayer || room.isSelling) return;
+      const user = room.users.find(u => u.id === socket.id);
+      
+      if (room.highestBidder && room.highestBidder.id === socket.id) return;
+
+      let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 20;
+
+      if ((user.purseRemaining * 100) >= newBid) {
+          room.currentBid = newBid;
+          room.highestBidder = user;
+          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name });
+          startTimer(roomCode);
+      } else {
+          socket.emit('errorMsg', "Not enough money!");
+      }
+  });
+
+  // NEW: LIVE CHAT LOGIC
+  socket.on('sendChatMessage', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room) {
+          const user = room.users.find(u => u.id === socket.id);
+          const senderName = user ? user.name : "Unknown";
+          // Bounce the message back to everyone in the room
+          io.to(data.roomCode).emit('receiveChatMessage', { sender: senderName, message: data.message });
+      }
+  });
+
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => { console.log(`✅ Server RUNNING on port ${PORT}!`); });
