@@ -6,87 +6,25 @@
     <title>IPL Mega Auction Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #0d0d0d; 
-            --card-bg: #1a1a1a;
-            --gold: #D4AF37;
-            --gold-hover: #f3c623;
-            --neon-red: #ff073a;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-        }
-
-        body { 
-            font-family: 'Montserrat', sans-serif; 
-            background-color: var(--bg-color); 
-            color: var(--text-main);
-            text-align: center; 
-            margin: 0; 
-            padding-top: 80px; 
-        }
-
-        .navbar {
-            position: fixed; top: 0; left: 0; width: 100%;
-            background: linear-gradient(135deg, #1f1f1f 25%, #141414 25%, #141414 50%, #1f1f1f 50%, #1f1f1f 75%, #141414 75%, #141414 100%);
-            background-size: 10px 10px;
-            border-bottom: 2px solid var(--gold);
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 30px; box-sizing: border-box; z-index: 1000;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.8);
-        }
+        :root { --bg-color: #0d0d0d; --card-bg: #1a1a1a; --gold: #D4AF37; --neon-red: #ff073a; --text-main: #f8fafc; --text-muted: #94a3b8; }
+        body { font-family: 'Montserrat', sans-serif; background-color: var(--bg-color); color: var(--text-main); text-align: center; margin: 0; padding-top: 80px; }
+        .navbar { position: fixed; top: 0; left: 0; width: 100%; background: linear-gradient(135deg, #1f1f1f 25%, #141414 25%, #141414 50%, #1f1f1f 50%, #1f1f1f 75%, #141414 75%, #141414 100%); background-size: 10px 10px; border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; box-sizing: border-box; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); }
         .navbar .logo { font-size: 1.5em; font-weight: 800; color: var(--gold); letter-spacing: 1px;}
         .navbar .stats { font-weight: 600; font-size: 1.1em; }
         .navbar .stats span { margin-left: 20px; color: var(--text-main); }
-
-        .container { 
-            max-width: 650px; margin: 0 auto 30px auto; 
-            background: var(--card-bg); padding: 30px; 
-            border-radius: 12px; border-top: 3px solid var(--neon-red);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-        }
-
+        .container { max-width: 650px; margin: 0 auto 30px auto; background: var(--card-bg); padding: 30px; border-radius: 12px; border-top: 3px solid var(--neon-red); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         h1 { color: var(--text-main); font-size: 2.5em; margin-bottom: 5px; font-weight: 800;}
         h3 { color: var(--text-muted); margin-top: 0; font-weight: 400;}
-        
-        button { 
-            background-color: var(--gold); color: #000; 
-            border: none; padding: 15px 25px; margin: 10px; 
-            border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 800; 
-            text-transform: uppercase; letter-spacing: 1px;
-            transition: all 0.3s ease; 
-        }
-        button:hover { 
-            background-color: var(--text-main); 
-            transform: translateY(-4px); 
-            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4); 
-        }
-        
-        input { padding: 12px; font-size: 16px; border: 1px solid #333; border-radius: 6px; text-align: center; background: #222; color: #fff; font-family: 'Montserrat', sans-serif;}
-        
+        button { background-color: var(--gold); color: #000; border: none; padding: 15px 25px; margin: 10px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 800; text-transform: uppercase; transition: all 0.3s ease; }
+        button:hover { background-color: var(--text-main); transform: translateY(-4px); box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4); }
+        input, select { padding: 12px; font-size: 16px; border: 1px solid #333; border-radius: 6px; text-align: center; background: #222; color: #fff; font-family: 'Montserrat', sans-serif;}
         .hidden { display: none !important; }
         #display-room-code { color: var(--gold); letter-spacing: 3px; font-size: 1.8em;}
-        
-        .player-card { 
-            background: #222; padding: 30px; border-radius: 10px; 
-            border: 1px solid #333; margin-bottom: 20px; 
-            transition: all 0.4s ease;
-        }
-        .player-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 25px rgba(212, 175, 55, 0.15);
-            border-color: var(--gold);
-        }
-
-        .player-avatar { 
-            width: 180px; height: 180px; border-radius: 15px; 
-            border: 3px solid var(--gold); margin-bottom: 15px; 
-            box-shadow: 0 8px 15px rgba(0,0,0,0.5); object-fit: cover; background: #111;
-        }
-
+        .player-card { background: #222; padding: 30px; border-radius: 10px; border: 1px solid #333; margin-bottom: 20px; transition: all 0.4s ease; }
+        .player-avatar { width: 180px; height: 180px; border-radius: 15px; border: 3px solid var(--gold); margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.5); object-fit: cover; background: #111; }
         .bid-dashboard { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #111; padding: 20px; border-radius: 10px; border: 1px solid #333;}
-        
-        #chat-messages::-webkit-scrollbar, #my-squad-list::-webkit-scrollbar { width: 6px; }
-        #chat-messages::-webkit-scrollbar-thumb, #my-squad-list::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
+        .host-panel { background: #3a1111; padding: 15px; border-radius: 8px; border: 1px solid var(--neon-red); margin-bottom: 20px; display: flex; justify-content: space-around; }
+        .host-panel button { padding: 10px 15px; font-size: 14px; margin: 0; }
     </style>
 </head>
 <body>
@@ -103,6 +41,15 @@
     <h1>FRANCHISE LOGIN</h1>
     <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
         <h3>Host a New Game</h3>
+        
+        <label>Format: </label>
+        <select id="format-select" style="margin-bottom: 15px; width: 80%;">
+            <option value="all">Mega Auction (All Players)</option>
+            <option value="tier1">Marquee Players Only (Rating 90+)</option>
+            <option value="indian">Indian Players Only</option>
+            <option value="overseas">Overseas Players Only</option>
+        </select><br>
+
         <label>Purse (Cr): </label> <input type="number" id="purse-input" value="100" style="width: 80px;"><br><br>
         <button id="create-btn">Create Private Room</button>
     </div>
@@ -116,6 +63,7 @@
 <div class="container hidden" id="lobby-screen">
     <h1>VIP LOBBY</h1>
     <h2>Room Code: <span id="display-room-code">---</span></h2>
+    <p style="color: var(--gold);" id="lobby-format-info"></p>
     <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
         <ul id="players-list" style="list-style-type: none; padding: 0; font-size: 1.2em; color: var(--gold);"></ul>
     </div>
@@ -123,9 +71,16 @@
 </div>
 
 <div class="container hidden" id="auction-screen">
+    
+    <div id="host-controls" class="host-panel hidden">
+        <strong style="color: var(--neon-red); align-self: center;">👑 HOST:</strong>
+        <button id="pause-btn" style="background: #444; color: white;">⏸ Pause</button>
+        <button id="resume-btn" class="hidden" style="background: #10b981; color: white;">▶ Resume</button>
+        <button id="undo-btn" style="background: #b97a10; color: white;">⏪ Undo Bid</button>
+    </div>
+
     <div class="player-card" id="card-bg">
         <img id="player-image" class="player-avatar" src="" alt="Player Avatar" referrerpolicy="no-referrer">
-        
         <h1 id="player-name" style="margin: 0; font-size: 2.8em; text-transform: uppercase;">Player Name</h1>
         <h2 id="player-role-country" style="color: var(--text-muted); margin-top: 5px;">Role | Country</h2>
         <h2 style="color: var(--gold);">Base Price: ₹<span id="player-base-price">0</span> Lakhs</h2>
@@ -172,6 +127,7 @@
 <script>
     const socket = io(); 
     let myRoomCode = "";
+    let isHost = false; // Tracks if you are the host
 
     const homeScreen = document.getElementById('home-screen');
     const lobbyScreen = document.getElementById('lobby-screen');
@@ -180,17 +136,25 @@
     const chatContainer = document.getElementById('chat-container');
     const navStats = document.getElementById('nav-stats');
     
+    // SEND FORMAT TO SERVER
     document.getElementById('create-btn').addEventListener('click', () => {
-        socket.emit('createRoom', { startingPurse: document.getElementById('purse-input').value });
+        socket.emit('createRoom', { 
+            startingPurse: document.getElementById('purse-input').value,
+            format: document.getElementById('format-select').value 
+        });
     });
 
     socket.on('roomCreated', (data) => {
+        isHost = true; 
         homeScreen.classList.add('hidden'); lobbyScreen.classList.remove('hidden'); chatContainer.classList.remove('hidden'); navStats.classList.remove('hidden');
         document.getElementById('display-room-code').innerText = data.code;
         document.getElementById('nav-room-code').innerText = data.code;
         document.getElementById('nav-purse').innerText = data.purse;
+        document.getElementById('lobby-format-info').innerText = `Pool Size: ${data.poolSize} Players`;
+        
         document.getElementById('start-auction-btn').classList.remove('hidden');
         document.getElementById('end-early-btn').classList.remove('hidden');
+        document.getElementById('host-controls').classList.remove('hidden'); // Show Superpowers!
         myRoomCode = data.code;
     });
 
@@ -215,30 +179,45 @@
         });
     });
 
+    // HOST CONTROLS LISTENERS
     document.getElementById('start-auction-btn').addEventListener('click', () => { socket.emit('startAuction', myRoomCode); });
-    document.getElementById('bid-btn').addEventListener('click', () => { socket.emit('placeBid', myRoomCode); });
     document.getElementById('end-early-btn').addEventListener('click', () => { socket.emit('endAuctionEarly', myRoomCode); });
+    
+    document.getElementById('pause-btn').addEventListener('click', () => { socket.emit('pauseAuction', myRoomCode); });
+    document.getElementById('resume-btn').addEventListener('click', () => { socket.emit('resumeAuction', myRoomCode); });
+    document.getElementById('undo-btn').addEventListener('click', () => { socket.emit('undoBid', myRoomCode); });
+
+    document.getElementById('bid-btn').addEventListener('click', () => { socket.emit('placeBid', myRoomCode); });
+
+    // VISUAL FEEDBACK FOR HOST POWERS
+    socket.on('auctionPaused', () => {
+        document.getElementById('timer').style.color = '#f3c623'; // Turn yellow
+        document.getElementById('timer').innerText = "PAUSED";
+        if(isHost) { document.getElementById('pause-btn').classList.add('hidden'); document.getElementById('resume-btn').classList.remove('hidden'); }
+    });
+
+    socket.on('auctionResumed', () => {
+        document.getElementById('timer').style.color = 'var(--neon-red)'; // Back to red
+        if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
+    });
 
     socket.on('newPlayerUp', (data) => {
         lobbyScreen.classList.add('hidden'); auctionScreen.classList.remove('hidden');
         document.getElementById('card-bg').style.background = '#222'; 
         document.getElementById('card-bg').style.borderColor = '#333';
+        document.getElementById('timer').style.color = 'var(--neon-red)'; // Reset timer color
+        
+        // Reset Host Buttons
+        if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
         
         const imgElement = document.getElementById('player-image');
         const encodedName = encodeURIComponent(data.player.name);
         const backupAvatar = `https://ui-avatars.com/api/?name=${encodedName}&size=180&background=D4AF37&color=000&bold=true`;
-
-        // Reset error state
         imgElement.onerror = null; 
 
         if (data.player.image && data.player.image !== "") {
             imgElement.src = data.player.image;
-            
-            // If Amazon blocks it despite our ninja tactics, fall back to Initials!
-            imgElement.onerror = function() {
-                this.onerror = null; 
-                this.src = backupAvatar;
-            };
+            imgElement.onerror = function() { this.onerror = null; this.src = backupAvatar; };
         } else {
             imgElement.src = backupAvatar;
         }
@@ -298,8 +277,6 @@
             </div>`;
         });
     });
-
-    socket.on('errorMsg', (msg) => { alert(msg); });
 
     document.getElementById('send-chat-btn').addEventListener('click', sendChat);
     document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
