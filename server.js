@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const app = express();
 app.use(cors());
-app.use(express.static(__dirname)); // Crucial for web deployment
+app.use(express.static(__dirname)); 
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
@@ -17,7 +17,6 @@ const activeRooms = {};
 // --- THE TEAM RATING ALGORITHM ---
 function calculateTeamRating(squad) {
     if (squad.length === 0) return 0;
-
     let totalRating = 0;
     let hasWk = false;
     let bowlingOptions = 0;
@@ -29,7 +28,6 @@ function calculateTeamRating(squad) {
     });
 
     let finalScore = totalRating / squad.length;
-
     if (!hasWk) finalScore -= 15; 
     if (bowlingOptions < 5) finalScore -= 10; 
 
@@ -42,11 +40,7 @@ function finishAuction(roomCode) {
     if(!room) return;
 
     let leaderboard = room.users.map(user => {
-        return {
-            name: user.name,
-            score: calculateTeamRating(user.squad),
-            squadSize: user.squad.length
-        };
+        return { name: user.name, score: calculateTeamRating(user.squad), squadSize: user.squad.length };
     });
 
     leaderboard.sort((a, b) => b.score - a.score);
@@ -177,8 +171,19 @@ io.on('connection', (socket) => {
           socket.emit('errorMsg', "Not enough money!");
       }
   });
+
+  // NEW: LIVE CHAT LOGIC
+  socket.on('sendChatMessage', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room) {
+          const user = room.users.find(u => u.id === socket.id);
+          const senderName = user ? user.name : "Unknown";
+          // Bounce the message back to everyone in the room
+          io.to(data.roomCode).emit('receiveChatMessage', { sender: senderName, message: data.message });
+      }
+  });
+
 });
 
-// Dynamic Port assignment for Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => { console.log(`✅ Server RUNNING on port ${PORT}!`); });
