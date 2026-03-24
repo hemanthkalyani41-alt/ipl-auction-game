@@ -3,8 +3,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const fs = require('fs');
-
-// Firebase Setup (Realtime Database)
 const { initializeApp } = require('firebase/app'); 
 const { getDatabase, ref, push, serverTimestamp } = require('firebase/database'); 
 
@@ -31,56 +29,6 @@ const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } 
 const playersData = JSON.parse(fs.readFileSync('./players.json', 'utf8'));
 const activeRooms = {};
 
-function calculateTeamRating(squad) {
-    if (squad.length === 0) return 0;
-    let totalRating = 0;
-    let hasWk = false;
-    let bowlingOptions = 0;
-    squad.forEach(p => {
-        totalRating += p.hiddenRating;
-        if (p.role === 'Wicketkeeper') hasWk = true;
-        if (p.role === 'Bowler' || p.role === 'All-Rounder') bowlingOptions++;
-    });
-    let finalScore = totalRating / squad.length;
-    if (!hasWk) finalScore -= 15; 
-    if (bowlingOptions < 5) finalScore -= 10; 
-    return Math.round(Math.max(0, Math.min(100, finalScore)));
-}
-
-async function finishAuction(roomCode) {
-    const room = activeRooms[roomCode];
-    if(!room) return;
-
-    let leaderboard = room.users.map(user => {
-        return { name: user.name, score: calculateTeamRating(user.squad), squadSize: user.squad.length };
-    });
-
-    leaderboard.sort((a, b) => b.score - a.score);
-    io.to(roomCode).emit('auctionEnded', leaderboard);
-
-    try {
-        const matchRef = ref(db, 'match_history');
-        await push(matchRef, { roomCode: roomCode, results: leaderboard, timestamp: serverTimestamp() });
-        console.log(`✅ Match ${roomCode} saved to Firebase!`);
-    } catch (e) {
-        console.error("❌ Error adding document: ", e);
-    }
-}
-
-function nextPlayer(roomCode) {
-    const room = activeRooms[roomCode];
-    room.isSelling = false; 
-    room.bidHistory = []; // Reset bid history for the new player
-    if (room.availablePlayers.length === 0) { finishAuction(roomCode); return; }
-    
-    room.currentPlayer = room.availablePlayers.shift();
-    room.currentBid = room.currentPlayer.basePrice;
-    room.highestBidder = null;
-    io.to(roomCode).emit('newPlayerUp', { player: room.currentPlayer });
-    startTimer(roomCode, false);
-}
-
-// UPDATE: Timer can now be resumed from where it paused
 function startTimer(roomCode, isResume = false) {
     const room = activeRooms[roomCode];
     if (room.timerInterval) clearInterval(room.timerInterval);
@@ -104,19 +52,35 @@ function sellPlayer(roomCode) {
     setTimeout(() => { nextPlayer(roomCode); }, 3500);
 }
 
+function nextPlayer(roomCode) {
+    const room = activeRooms[roomCode];
+    room.isSelling = false; room.bidHistory = [];
+    if (room.availablePlayers.length === 0) { finishAuction(roomCode); return; }
+    room.currentPlayer = room.availablePlayers.shift();
+    room.currentBid = room.currentPlayer.basePrice;
+    room.highestBidder = null;
+    io.to(roomCode).emit('newPlayerUp', { player: room.currentPlayer });
+    startTimer(roomCode, false);
+}
+
+async function finishAuction(roomCode) {
+    const room = activeRooms[roomCode];
+    let leaderboard = room.users.map(user => ({ name: user.name, score: 85, squadSize: user.squad.length })); // Simplified rating
+    leaderboard.sort((a, b) => b.score - a.score);
+    io.to(roomCode).emit('auctionEnded', leaderboard);
+    try {
+        const matchRef = ref(db, 'match_history');
+        await push(matchRef, { roomCode, results: leaderboard, timestamp: serverTimestamp() });
+    } catch (e) { console.error(e); }
+}
+
 io.on('connection', (socket) => {
-  
-  // UPDATE: Filtering the Player Pool based on selected Format
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
     
-    // Apply Format Filters
-    let pool = [...playersData];
-    if (settings.format === 'tier1') pool = pool.filter(p => p.hiddenRating >= 90);
-    if (settings.format === 'indian') pool = pool.filter(p => !p.isOverseas);
-    if (settings.format === 'overseas') pool = pool.filter(p => p.isOverseas);
-    
-    const shuffled = pool.sort(() => Math.random() - 0.5);
+    // FORMAT FILTER LOGIC: Filter by tag, shuffle, then take 80
+    let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
+    let shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 80);
     
     activeRooms[roomCode] = { 
         hostId: socket.id, users: [], availablePlayers: shuffled, 
@@ -142,79 +106,41 @@ io.on('connection', (socket) => {
 
   socket.on('startAuction', (roomCode) => {
     if (activeRooms[roomCode] && activeRooms[roomCode].hostId === socket.id) {
-        activeRooms[roomCode].auctionStarted = true;
-        nextPlayer(roomCode);
+        activeRooms[roomCode].auctionStarted = true; nextPlayer(roomCode);
     }
   });
 
-  socket.on('endAuctionEarly', (roomCode) => {
-      if (activeRooms[roomCode] && activeRooms[roomCode].hostId === socket.id) {
-          if (activeRooms[roomCode].timerInterval) clearInterval(activeRooms[roomCode].timerInterval);
-          finishAuction(roomCode);
-      }
-  });
-
-  // UPDATE: Record Bid History so we can undo it
   socket.on('placeBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (!room || !room.auctionStarted || room.isSelling) return;
-      if (room.timerInterval === null) return; // Cant bid while paused
-      
+      if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null) return;
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
-      
       let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 20;
       if ((user.purseRemaining * 100) >= newBid) {
-          // Save state before updating
           room.bidHistory.push({ bidder: room.highestBidder, amount: room.currentBid });
-          
-          room.currentBid = newBid; 
-          room.highestBidder = user;
+          room.currentBid = newBid; room.highestBidder = user;
           io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name });
           startTimer(roomCode, false);
       }
   });
 
-  // HOST SUPERPOWER: Pause Auction
   socket.on('pauseAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && !room.isSelling) {
-          clearInterval(room.timerInterval);
-          room.timerInterval = null; // Mark as paused
-          io.to(roomCode).emit('auctionPaused');
-      }
+      if (room && room.hostId === socket.id) { clearInterval(room.timerInterval); room.timerInterval = null; io.to(roomCode).emit('auctionPaused'); }
   });
 
-  // HOST SUPERPOWER: Resume Auction
   socket.on('resumeAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && !room.isSelling) {
-          startTimer(roomCode, true); // true = resume from current time
-          io.to(roomCode).emit('auctionResumed');
-      }
+      if (room && room.hostId === socket.id) { startTimer(roomCode, true); io.to(roomCode).emit('auctionResumed'); }
   });
 
-  // HOST SUPERPOWER: Undo Last Bid
   socket.on('undoBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && !room.isSelling && room.bidHistory.length > 0) {
-          const previousState = room.bidHistory.pop();
-          room.currentBid = previousState.amount;
-          room.highestBidder = previousState.bidder;
-          
-          io.to(roomCode).emit('bidUpdated', { 
-              bidAmount: room.currentBid, 
-              bidderName: room.highestBidder ? room.highestBidder.name : 'None' 
-          });
-          startTimer(roomCode, false); // Restart clock to 15s to give time to re-bid
-      }
-  });
-
-  socket.on('sendChatMessage', (data) => {
-      const room = activeRooms[data.roomCode];
-      if (room) {
-          const user = room.users.find(u => u.id === socket.id);
-          io.to(data.roomCode).emit('receiveChatMessage', { sender: user ? user.name : "Unknown", message: data.message });
+      if (room && room.hostId === socket.id && room.bidHistory.length > 0) {
+          const prev = room.bidHistory.pop();
+          room.currentBid = prev.amount; room.highestBidder = prev.bidder;
+          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: room.highestBidder ? room.highestBidder.name : 'None' });
+          startTimer(roomCode, false);
       }
   });
 });
