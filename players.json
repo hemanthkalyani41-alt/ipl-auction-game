@@ -45,7 +45,7 @@
   { "name": "Rajat Patidar", "role": "Batsman", "country": "India", "isOverseas": false, "basePrice": 50, "hiddenRating": 82, "image": "" },
   { "name": "Will Jacks", "role": "All-Rounder", "country": "England", "isOverseas": true, "basePrice": 150, "hiddenRating": 86, "image": "" },
   { "name": "Cameron Green", "role": "All-Rounder", "country": "Australia", "isOverseas": true, "basePrice": 200, "hiddenRating": 88, "image": "" },
-  { "name": "Tim David", "role": "Batsman", "country": "Australia", "isOverseas": true, "basePrice": 100, "hiddenRating": 87, "image": "" },
+  { "name": "Tim David", "role": "Batsman", "country": "Australia", "is overseas": true, "basePrice": 100, "hiddenRating": 87, "image": "" },
   { "name": "Tilak Varma", "role": "Batsman", "country": "India", "isOverseas": false, "basePrice": 50, "hiddenRating": 86, "image": "" },
   { "name": "Gerald Coetzee", "role": "Bowler", "country": "South Africa", "isOverseas": true, "basePrice": 100, "hiddenRating": 85, "image": "" },
   { "name": "Varun Chakaravarthy", "role": "Bowler", "country": "India", "isOverseas": false, "basePrice": 100, "hiddenRating": 86, "image": "" },
