@@ -1,3 +1,14 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const fs = require('fs');
+
+// Firebase Setup (Realtime Database)
+const { initializeApp } = require('firebase/app'); 
+const { getDatabase, ref, push, serverTimestamp } = require('firebase/database'); 
+
+// YOUR EXACT FIREBASE KEYS (Only declared once!)
 const firebaseConfig = {
   apiKey: "AIzaSyDX45NbE2mSo6NVnh2uvCK0BaBoccGy-ss",
   authDomain: "ipl-auction-game-d1cab.firebaseapp.com",
@@ -7,30 +18,11 @@ const firebaseConfig = {
   appId: "1:178910298039:web:eb133037094fa7b01b3232",
   measurementId: "G-JDS6N4887N"
 };
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
-const fs = require('fs');
-
-// NEW: Using Realtime Database instead of Firestore
-const { initializeApp } = require('firebase/app'); 
-const { getDatabase, ref, push, serverTimestamp } = require('firebase/database'); 
-
-// 🛑 STOP AND PASTE YOUR FIREBASE CONFIG HERE! 🛑
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-// 🛑 ------------------------------------------- 🛑
 
 const firebaseApp = initializeApp(firebaseConfig);
-const db = getDatabase(firebaseApp); // Connecting to Realtime DB!
+const db = getDatabase(firebaseApp); 
 
+// Server Setup
 const app = express();
 app.use(cors());
 app.use(express.static(__dirname)); 
@@ -67,7 +59,7 @@ async function finishAuction(roomCode) {
     leaderboard.sort((a, b) => b.score - a.score);
     io.to(roomCode).emit('auctionEnded', leaderboard);
 
-    // NEW: Pushing the match data to the Realtime Database!
+    // Save to Firebase Realtime Database
     try {
         const matchRef = ref(db, 'match_history');
         await push(matchRef, {
@@ -75,7 +67,7 @@ async function finishAuction(roomCode) {
             results: leaderboard,
             timestamp: serverTimestamp()
         });
-        console.log(`✅ Match ${roomCode} saved to Firebase Realtime Database!`);
+        console.log(`✅ Match ${roomCode} saved to Firebase!`);
     } catch (e) {
         console.error("❌ Error adding document: ", e);
     }
@@ -91,6 +83,7 @@ function nextPlayer(roomCode) {
     io.to(roomCode).emit('newPlayerUp', { player: room.currentPlayer });
     startTimer(roomCode);
 }
+
 function startTimer(roomCode) {
     const room = activeRooms[roomCode];
     if (room.timerInterval) clearInterval(room.timerInterval);
@@ -102,6 +95,7 @@ function startTimer(roomCode) {
         if (room.timeLeft <= 0) { clearInterval(room.timerInterval); sellPlayer(roomCode); }
     }, 1000);
 }
+
 function sellPlayer(roomCode) {
     const room = activeRooms[roomCode];
     room.isSelling = true; 
@@ -155,21 +149,4 @@ io.on('connection', (socket) => {
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 20;
-      if ((user.purseRemaining * 100) >= newBid) {
-          room.currentBid = newBid; room.highestBidder = user;
-          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name });
-          startTimer(roomCode);
-      }
-  });
-
-  socket.on('sendChatMessage', (data) => {
-      const room = activeRooms[data.roomCode];
-      if (room) {
-          const user = room.users.find(u => u.id === socket.id);
-          io.to(data.roomCode).emit('receiveChatMessage', { sender: user ? user.name : "Unknown", message: data.message });
-      }
-  });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`🚀 Server on port ${PORT}`); });
+      if ((user.purseRemaining * 100) >= newBid
