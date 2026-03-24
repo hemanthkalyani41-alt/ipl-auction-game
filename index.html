@@ -221,18 +221,27 @@
     document.getElementById('start-auction-btn').addEventListener('click', () => { socket.emit('startAuction', myRoomCode); });
     document.getElementById('bid-btn').addEventListener('click', () => { socket.emit('placeBid', myRoomCode); });
     document.getElementById('end-early-btn').addEventListener('click', () => { socket.emit('endAuctionEarly', myRoomCode); });
-
-    socket.on('newPlayerUp', (data) => {
+socket.on('newPlayerUp', (data) => {
         lobbyScreen.classList.add('hidden'); auctionScreen.classList.remove('hidden');
         document.getElementById('card-bg').style.background = '#222'; 
         document.getElementById('card-bg').style.borderColor = '#333';
         
         const imgElement = document.getElementById('player-image');
+        const encodedName = encodeURIComponent(data.player.name);
+        const backupAvatar = `https://ui-avatars.com/api/?name=${encodedName}&size=180&background=D4AF37&color=000&bold=true`;
+
+        // Reset the onerror handler every time a new player loads
+        imgElement.onerror = null; 
+
         if (data.player.image && data.player.image !== "") {
             imgElement.src = data.player.image;
+            // If the BCCI link is dead or blocked, instantly swap to the backup!
+            imgElement.onerror = function() {
+                this.onerror = null; 
+                this.src = backupAvatar;
+            };
         } else {
-            const encodedName = encodeURIComponent(data.player.name);
-            imgElement.src = `https://ui-avatars.com/api/?name=${encodedName}&size=180&background=D4AF37&color=000&bold=true`;
+            imgElement.src = backupAvatar;
         }
         
         document.getElementById('player-name').innerText = data.player.name;
