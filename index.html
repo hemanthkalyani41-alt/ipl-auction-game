@@ -230,12 +230,13 @@ socket.on('newPlayerUp', (data) => {
         const encodedName = encodeURIComponent(data.player.name);
         const backupAvatar = `https://ui-avatars.com/api/?name=${encodedName}&size=180&background=D4AF37&color=000&bold=true`;
 
-        // Reset the onerror handler every time a new player loads
         imgElement.onerror = null; 
 
         if (data.player.image && data.player.image !== "") {
-            imgElement.src = data.player.image;
-            // If the BCCI link is dead or blocked, instantly swap to the backup!
+            // THE FIX: Route the image through a proxy to bypass Amazon's security blocks!
+            const proxyUrl = `https://wsrv.nl/?url=${data.player.image}`;
+            imgElement.src = proxyUrl;
+            
             imgElement.onerror = function() {
                 this.onerror = null; 
                 this.src = backupAvatar;
