@@ -67,10 +67,11 @@ async function finishAuction(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
     
+    // BUG FIX: parseFloat ensures the math doesn't crash the server
     let leaderboard = room.users.map(user => ({ 
         name: user.name, 
         squadSize: user.squad.length,
-        purseLeft: user.purseRemaining.toFixed(2)
+        purseLeft: parseFloat(user.purseRemaining).toFixed(2) 
     })); 
     
     leaderboard.sort((a, b) => b.squadSize - a.squadSize || b.purseLeft - a.purseLeft);
@@ -86,10 +87,11 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
     
-    // THE FIX: Uncapped the player pool! No more .slice(), it loads everyone available.
     let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
     let shuffled = pool.sort(() => Math.random() - 0.5); 
     
+    // BUG FIX: Convert string input to safe math float immediately
+    settings.startingPurse = parseFloat(settings.startingPurse) || 100;
     settings.maxSquad = 15;
     settings.maxOverseas = 4;
 
@@ -103,7 +105,7 @@ io.on('connection', (socket) => {
     roomCode = roomCode.toUpperCase();
     if (activeRooms[roomCode]) {
       socket.join(roomCode);
-      const startMoney = activeRooms[roomCode].settings.startingPurse;
+      const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
       activeRooms[roomCode].users.push({ id: socket.id, name: `Player ${activeRooms[roomCode].users.length + 1}`, purseRemaining: startMoney, squad: [] });
       socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
