@@ -47,7 +47,6 @@ function sellPlayer(roomCode) {
     if (room.highestBidder) {
         const winner = room.users.find(u => u.id === room.highestBidder.id);
         if(winner) { 
-            // Math is now directly in Crores
             winner.purseRemaining -= room.currentBid; 
             winner.squad.push(room.currentPlayer); 
         }
@@ -91,9 +90,14 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
     
-    let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
+    // THE 120 PLAYER FIX: If "All" is selected, bypass the filter entirely!
+    let pool;
+    if (settings.format === 'All') {
+        pool = playersData;
+    } else {
+        pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
+    }
     
-    // AUTOMATIC CURRENCY CONVERTER: Converts JSON Lakhs to Crores instantly
     let shuffled = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
     
     settings.startingPurse = parseFloat(settings.startingPurse) || 100;
@@ -102,8 +106,6 @@ io.on('connection', (socket) => {
 
     activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, bidHistory: [], settings: settings };
     socket.join(roomCode);
-    
-    // Push the Host's custom Franchise Name and Color
     activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#00e5ff', purseRemaining: settings.startingPurse, squad: [] });
     socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
   });
@@ -113,8 +115,6 @@ io.on('connection', (socket) => {
     if (activeRooms[roomCode]) {
       socket.join(roomCode);
       const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
-      
-      // Push the joining player's Franchise Name and Color
       activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#ff0055', purseRemaining: startMoney, squad: [] });
       socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
@@ -141,7 +141,7 @@ io.on('connection', (socket) => {
               room.highestBidder = null;
               io.to(data.roomCode).emit('newPlayerUp', { player: room.currentPlayer });
               startTimer(data.roomCode, false);
-      }
+          }
       }
   });
 
@@ -151,7 +151,6 @@ io.on('connection', (socket) => {
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
-      // NEW BID MATH: Exactly +0.5 Cr increments
       let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 0.5;
       
       if (user.purseRemaining >= newBid) {
