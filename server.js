@@ -65,6 +65,7 @@ function nextPlayer(roomCode) {
 
 async function finishAuction(roomCode) {
     const room = activeRooms[roomCode];
+    if(!room) return;
     let leaderboard = room.users.map(user => ({ name: user.name, score: 85, squadSize: user.squad.length })); 
     leaderboard.sort((a, b) => b.score - a.score);
     io.to(roomCode).emit('auctionEnded', leaderboard);
@@ -80,28 +81,38 @@ io.on('connection', (socket) => {
     let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
     let shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 80);
     
+    // Default Rules
+    settings.maxSquad = 15;
+    settings.maxOverseas = 4;
+
     activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, bidHistory: [], settings: settings };
     socket.join(roomCode);
     activeRooms[roomCode].users.push({ id: socket.id, name: 'Host', purseRemaining: settings.startingPurse, squad: [] });
-    socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse, format: settings.format, poolSize: shuffled.length });
-    io.to(roomCode).emit('updateLobby', activeRooms[roomCode].users);
+    socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
   });
 
   socket.on('joinRoom', (roomCode) => {
     roomCode = roomCode.toUpperCase();
-    if (activeRooms[roomCode] && !activeRooms[roomCode].auctionStarted) {
+    if (activeRooms[roomCode]) {
       socket.join(roomCode);
       const startMoney = activeRooms[roomCode].settings.startingPurse;
       activeRooms[roomCode].users.push({ id: socket.id, name: `Player ${activeRooms[roomCode].users.length + 1}`, purseRemaining: startMoney, squad: [] });
-      socket.emit('roomJoined', { code: roomCode, purse: startMoney });
-      io.to(roomCode).emit('updateLobby', activeRooms[roomCode].users);
+      // Send rules to joining player
+      socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
   });
 
-  socket.on('startAuction', (roomCode) => {
-    if (activeRooms[roomCode] && activeRooms[roomCode].hostId === socket.id) {
-        activeRooms[roomCode].auctionStarted = true; nextPlayer(roomCode);
-    }
+  // Host updates rules before starting
+  socket.on('updateRulesAndStart', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room && room.hostId === socket.id) {
+          room.settings.maxSquad = data.maxSquad;
+          room.settings.maxOverseas = data.maxOverseas;
+          io.to(data.roomCode).emit('rulesUpdated', room.settings);
+          
+          room.auctionStarted = true; 
+          nextPlayer(data.roomCode);
+      }
   });
 
   socket.on('placeBid', (roomCode) => {
@@ -109,6 +120,7 @@ io.on('connection', (socket) => {
       if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null) return;
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
+      
       let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 20;
       if ((user.purseRemaining * 100) >= newBid) {
           room.bidHistory.push({ bidder: room.highestBidder, amount: room.currentBid });
@@ -138,7 +150,15 @@ io.on('connection', (socket) => {
       }
   });
 
-  // CHAT SERVER LOGIC
+  // End Early Button Logic
+  socket.on('endAuctionEarly', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (room && room.hostId === socket.id) {
+          if (room.timerInterval) clearInterval(room.timerInterval);
+          finishAuction(roomCode);
+      }
+  });
+
   socket.on('sendChatMessage', (data) => {
       const room = activeRooms[data.roomCode];
       if (room) {
