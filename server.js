@@ -50,29 +50,35 @@ function sellPlayer(roomCode) {
         io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', amount: room.currentBid, users: room.users });
     } else { io.to(roomCode).emit('playerUnsold'); }
     
-    // THE CHANGE: Don't pull automatically. Ask the host!
     setTimeout(() => { promptHostForNextPlayer(roomCode); }, 3500);
 }
 
-// NEW FUNCTION: Hands control back to the host
 function promptHostForNextPlayer(roomCode) {
     const room = activeRooms[roomCode];
     room.isSelling = false; 
     room.bidHistory = [];
-    room.currentPlayer = null; // Clear the block
+    room.currentPlayer = null; 
     
     if (room.availablePlayers.length === 0) { finishAuction(roomCode); return; }
-    
-    // Tell everyone to wait, and send the host the list of remaining players
     io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
 }
 
+// THIS FIRES WHEN "END EARLY" IS CLICKED OR DECK IS EMPTY
 async function finishAuction(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
-    let leaderboard = room.users.map(user => ({ name: user.name, score: 85, squadSize: user.squad.length })); 
-    leaderboard.sort((a, b) => b.score - a.score);
+    
+    let leaderboard = room.users.map(user => ({ 
+        name: user.name, 
+        squadSize: user.squad.length,
+        purseLeft: user.purseRemaining.toFixed(2)
+    })); 
+    
+    // Sort by largest squad, then most money left
+    leaderboard.sort((a, b) => b.squadSize - a.squadSize || b.purseLeft - a.purseLeft);
+    
     io.to(roomCode).emit('auctionEnded', leaderboard);
+    
     try {
         const matchRef = ref(db, 'match_history');
         await push(matchRef, { roomCode, results: leaderboard, timestamp: serverTimestamp() });
@@ -83,8 +89,6 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
     let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
-    
-    // THE CHANGE: Increased pool limit to 100 players
     let shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 100);
     
     settings.maxSquad = 15;
@@ -112,14 +116,11 @@ io.on('connection', (socket) => {
           room.settings.maxSquad = data.maxSquad;
           room.settings.maxOverseas = data.maxOverseas;
           io.to(data.roomCode).emit('rulesUpdated', room.settings);
-          
           room.auctionStarted = true; 
-          // THE CHANGE: Trigger the manual selection instead of random start
           promptHostForNextPlayer(data.roomCode);
       }
   });
 
-  // NEW: Host manually brings a player to the block
   socket.on('bringPlayerUp', (data) => {
       const room = activeRooms[data.roomCode];
       if (room && room.hostId === socket.id && !room.currentPlayer) {
@@ -169,6 +170,7 @@ io.on('connection', (socket) => {
       }
   });
 
+  // END EARLY LOGIC TRIGGER
   socket.on('endAuctionEarly', (roomCode) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id) {
