@@ -1,77 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><title>IPL Mega Auction Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;800&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IPL Mega Auction Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg-color: #0d0d0d; --card-bg: #1a1a1a; --gold: #D4AF37; --neon-red: #ff073a; --text-main: #f8fafc; }
-        body { font-family: 'Montserrat', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding-top: 80px; }
-        .navbar { position: fixed; top: 0; width: 100%; background: #141414; border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; padding: 15px 30px; box-sizing: border-box; z-index: 1000; }
-        .container { max-width: 600px; margin: auto; background: var(--card-bg); padding: 30px; border-radius: 12px; border-top: 3px solid var(--neon-red); }
-        button { background: var(--gold); color: #000; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        :root { --bg-color: #0d0d0d; --card-bg: #1a1a1a; --gold: #D4AF37; --neon-red: #ff073a; --text-main: #f8fafc; --text-muted: #94a3b8; }
+        
+        body { font-family: 'Montserrat', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 70px 10px 20px 10px; overflow-x: hidden; }
+
+        .navbar { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: #141414; border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; }
+
+        .container { width: 100%; max-width: 500px; margin: 0 auto 15px auto; background: var(--card-bg); padding: 20px; border-radius: 12px; border-top: 3px solid var(--neon-red); box-sizing: border-box; }
+
+        /* Player Card */
+        .player-card { background: #222; padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 10px; }
+        .player-avatar { width: 100px; height: 100px; border-radius: 10px; border: 2px solid var(--gold); object-fit: cover; margin-bottom: 5px; }
+        
+        h1 { font-size: 1.5em; margin: 5px 0; }
+        h2 { font-size: 1.1em; margin: 5px 0; }
+
+        button { background: var(--gold); color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; width: 100%; font-size: 1em; margin: 5px 0; transition: 0.2s; }
+        button:active { transform: scale(0.95); opacity: 0.8; }
+
+        .bid-dashboard { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #111; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; }
+
+        /* FIXED SQUAD SECTION */
+        .squad-section { background: #111; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; text-align: left; }
+        .squad-list { max-height: 80px; overflow-y: auto; font-size: 0.85em; padding: 0; margin: 5px 0; list-style: none; }
+        .squad-item { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #222; }
+
+        /* CHAT SECTION */
+        .chat-section { background: #000; border-radius: 8px; padding: 8px; border: 1px solid #333; margin-top: 10px; }
+        #chat-messages { height: 70px; overflow-y: auto; text-align: left; font-size: 0.8em; margin-bottom: 5px; color: #ccc; }
+        
+        .host-panel { background: #3a1111; padding: 8px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 10px; justify-content: center; }
+        .host-panel button { width: auto; font-size: 0.7em; padding: 8px 12px; margin: 0; }
+
         .hidden { display: none !important; }
-        .host-panel { background: #3a1111; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-around; }
-        .player-avatar { width: 160px; height: 160px; border-radius: 10px; border: 3px solid var(--gold); }
+        input, select { width: 100%; padding: 10px; margin-bottom: 8px; box-sizing: border-box; background: #222; color: #fff; border: 1px solid #444; border-radius: 5px; font-family: 'Montserrat'; }
     </style>
 </head>
 <body>
-<nav class="navbar"><div style="color:var(--gold); font-weight:800;">🏏 PRO AUCTION</div><div id="nav-stats" class="hidden">Room: <span id="nav-code" style="color:var(--gold);"></span> | ₹<span id="nav-purse" style="color:var(--neon-red);"></span> Cr</div></nav>
+
+<nav class="navbar">
+    <div style="color:var(--gold); font-weight:800; font-size: 1em;">🏏 PRO AUCTION</div>
+    <div id="nav-stats" class="hidden" style="font-size: 0.75em;">
+        <span id="nav-code" style="color:var(--gold);"></span> | ₹<span id="nav-purse" style="color:var(--neon-red);"></span>Cr
+    </div>
+</nav>
 
 <div class="container" id="home-screen">
     <h1>AUCTION SETUP</h1>
-    <select id="format-select" style="width:100%; padding:10px; margin-bottom:15px;">
+    <select id="format-select">
         <option value="T20">T20 Mega Auction</option>
         <option value="ODI">ODI World Cup Draft</option>
         <option value="Test">Test Championship</option>
     </select>
-    <input type="number" id="purse-input" value="100" style="width:100px; padding:10px;"> Cr Purse<br><br>
+    <input type="number" id="purse-input" value="100"> <small>Starting Purse (Cr)</small>
     <button id="create-btn">Host Auction</button>
-    <hr><input type="text" id="join-input" placeholder="Room Code"> <button id="join-btn">Join</button>
+    <hr style="border: 1px solid #333; margin: 15px 0;">
+    <input type="text" id="join-input" placeholder="Room Code"> 
+    <button id="join-btn" style="background: #eee;">Join Room</button>
+</div>
+
+<div class="container hidden" id="lobby-screen">
+    <h2>LOBBY: <span id="display-code" style="color:var(--gold)"></span></h2>
+    <div id="players-list" style="text-align:left; margin-bottom:20px;"></div>
+    <button id="start-btn" class="hidden" style="background:var(--neon-red); color:#fff;">START AUCTION</button>
 </div>
 
 <div class="container hidden" id="auction-screen">
     <div id="host-controls" class="host-panel hidden">
-        <button id="pause-btn">⏸ Pause</button><button id="resume-btn" class="hidden">▶ Resume</button><button id="undo-btn">⏪ Undo</button>
+        <button id="pause-btn">⏸ Pause</button>
+        <button id="resume-btn" class="hidden">▶ Resume</button>
+        <button id="undo-btn">⏪ Undo</button>
     </div>
-    <div style="background:#222; padding:20px; border-radius:10px;">
+
+    <div class="player-card">
         <img id="player-img" class="player-avatar" src="" referrerpolicy="no-referrer">
-        <h2 id="p-name"></h2><p id="p-info"></p>
-        <h3 style="color:var(--gold);">Base: ₹<span id="p-base"></span> L</h3>
+        <h2 id="p-name" style="margin:2px 0;"></h2>
+        <p id="p-info" style="color:var(--text-muted); margin:0; font-size:0.9em;"></p>
+        <h3 style="color:var(--gold); margin:5px 0;">Base: ₹<span id="p-base"></span> L</h3>
     </div>
-    <div style="display:flex; justify-content:space-between; padding:20px;">
-        <div style="text-align:left;">Bidder: <span id="c-bidder">None</span><br><b>₹<span id="c-bid">0</span> L</b></div>
-        <div id="timer" style="font-size:3em; color:var(--neon-red);">15</div>
+
+    <div class="bid-dashboard">
+        <div style="text-align:left;">
+            <small style="color:var(--text-muted)">Bidder:</small> <b id="c-bidder">None</b><br>
+            <span style="color:var(--gold); font-weight:800;">₹<span id="c-bid">0</span> L</span>
+        </div>
+        <div id="timer" style="font-size:2.2em; color:var(--neon-red); font-weight:800;">15</div>
     </div>
-    <button id="bid-btn" style="width:100%; font-size:1.5em;">PLACE BID</button>
+
+    <div class="squad-section">
+        <small style="color:var(--gold); font-weight:700;">📋 MY SQUAD (<span id="squad-count">0</span>)</small>
+        <ul class="squad-list" id="my-squad-list">
+            <li style="color:#444;">No players bought yet...</li>
+        </ul>
+    </div>
+
+    <button id="bid-btn" style="height: 60px; font-size: 1.2em; background: linear-gradient(to bottom, var(--gold), #b8860b);">PLACE BID</button>
+    
+    <div class="chat-section">
+        <div id="chat-messages"></div>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="chat-input" placeholder="Type..." style="margin:0; height:35px;">
+            <button id="send-btn" style="width:60px; margin:0; padding:0; height:35px;">Send</button>
+        </div>
+    </div>
 </div>
+
+<audio id="sfx-bid" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+<audio id="sfx-sold" src="https://assets.mixkit.co/active_storage/sfx/1085/1085-preview.mp3"></audio>
+<audio id="sfx-tick" src="https://assets.mixkit.co/active_storage/sfx/2558/2558-preview.mp3"></audio>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    const socket = io(); let room = ""; let isHost = false;
-    const screens = { home: document.getElementById('home-screen'), auction: document.getElementById('auction-screen') };
+    const socket = io(); 
+    let room = ""; let isHost = false;
 
-    document.getElementById('create-btn').onclick = () => socket.emit('createRoom', { startingPurse: document.getElementById('purse-input').value, format: document.getElementById('format-select').value });
-    document.getElementById('join-btn').onclick = () => socket.emit('joinRoom', document.getElementById('join-input').value.toUpperCase());
+    const playSound = (id) => { 
+        const s = document.getElementById(id);
+        s.currentTime = 0; s.play().catch(() => {});
+    };
+
+    const showScreen = (id) => {
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+    };
+
+    document.getElementById('create-btn').onclick = () => {
+        socket.emit('createRoom', { startingPurse: document.getElementById('purse-input').value, format: document.getElementById('format-select').value });
+    };
+
+    document.getElementById('join-btn').onclick = () => {
+        socket.emit('joinRoom', document.getElementById('join-input').value.toUpperCase());
+    };
+
+    socket.on('roomCreated', d => {
+        room = d.code; isHost = true;
+        showScreen('lobby-screen');
+        document.getElementById('nav-stats').classList.remove('hidden');
+        document.getElementById('nav-code').innerText = room;
+        document.getElementById('display-code').innerText = room;
+        document.getElementById('nav-purse').innerText = d.purse;
+        document.getElementById('start-btn').classList.remove('hidden');
+    });
+
+    socket.on('roomJoined', d => {
+        room = d.code;
+        showScreen('lobby-screen');
+        document.getElementById('nav-stats').classList.remove('hidden');
+        document.getElementById('nav-code').innerText = room;
+        document.getElementById('display-code').innerText = room;
+        document.getElementById('nav-purse').innerText = d.purse;
+    });
+
+    socket.on('updateLobby', users => {
+        const list = document.getElementById('players-list'); list.innerHTML = '';
+        users.forEach(u => list.innerHTML += `<div style="padding:8px; border-bottom:1px solid #333;">👤 ${u.name}</div>`);
+    });
+
+    document.getElementById('start-btn').onclick = () => socket.emit('startAuction', room);
     document.getElementById('bid-btn').onclick = () => socket.emit('placeBid', room);
+
+    socket.on('newPlayerUp', d => {
+        showScreen('auction-screen');
+        if(isHost) document.getElementById('host-controls').classList.remove('hidden');
+        document.getElementById('p-name').innerText = d.player.name;
+        document.getElementById('p-info').innerText = `${d.player.role} | ${d.player.country}`;
+        document.getElementById('p-base').innerText = d.player.basePrice;
+        document.getElementById('c-bid').innerText = d.player.basePrice;
+        document.getElementById('c-bidder').innerText = "None";
+        const img = document.getElementById('player-img');
+        const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=D4AF37&color=000&bold=true`;
+        img.src = d.player.image || avatar; img.onerror = () => { img.src = avatar; };
+    });
+
+    socket.on('bidUpdated', d => {
+        document.getElementById('c-bid').innerText = d.bidAmount;
+        document.getElementById('c-bidder').innerText = d.bidderName;
+        playSound('sfx-bid');
+    });
+
+    socket.on('timerUpdate', t => {
+        document.getElementById('timer').innerText = t;
+        if(t <= 5 && t > 0) playSound('sfx-tick');
+    });
+
+    socket.on('playerSold', d => {
+        playSound('sfx-sold');
+        const me = d.users.find(u => u.id === socket.id);
+        if(me) {
+            document.getElementById('nav-purse').innerText = me.purseRemaining.toFixed(2);
+            document.getElementById('squad-count').innerText = me.squad.length;
+            const list = document.getElementById('my-squad-list');
+            list.innerHTML = '';
+            me.squad.forEach(p => {
+                list.innerHTML += `<li class="squad-item"><span>🏏 ${p.name}</span> <span style="color:var(--gold)">₹${p.basePrice}L</span></li>`;
+            });
+        }
+    });
+
+    socket.on('playerUnsold', () => { document.getElementById('p-name').innerText = "UNSOLD"; });
+
+    document.getElementById('send-btn').onclick = () => {
+        const msg = document.getElementById('chat-input').value;
+        if(msg) { socket.emit('sendChatMessage', { roomCode: room, message: msg }); document.getElementById('chat-input').value = ''; }
+    };
+
+    socket.on('receiveChatMessage', d => {
+        const box = document.getElementById('chat-messages');
+        box.innerHTML += `<div><b>${d.sender}:</b> ${d.message}</div>`;
+        box.scrollTop = box.scrollHeight;
+    });
+
     document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
     document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
     document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
 
-    socket.on('roomCreated', d => { room = d.code; isHost = true; screens.home.classList.add('hidden'); screens.auction.classList.remove('hidden'); document.getElementById('host-controls').classList.remove('hidden'); document.getElementById('nav-stats').classList.remove('hidden'); document.getElementById('nav-code').innerText = room; document.getElementById('nav-purse').innerText = d.purse; socket.emit('startAuction', room); });
-    socket.on('roomJoined', d => { room = d.code; screens.home.classList.add('hidden'); screens.auction.classList.remove('hidden'); document.getElementById('nav-stats').classList.remove('hidden'); document.getElementById('nav-code').innerText = room; document.getElementById('nav-purse').innerText = d.purse; });
-
-    socket.on('newPlayerUp', d => {
-        document.getElementById('p-name').innerText = d.player.name; document.getElementById('p-info').innerText = `${d.player.role} | ${d.player.country}`; document.getElementById('p-base').innerText = d.player.basePrice;
-        document.getElementById('c-bid').innerText = d.player.basePrice; document.getElementById('c-bidder').innerText = "None";
-        const img = document.getElementById('player-img'); const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=D4AF37&color=000&bold=true`;
-        img.src = d.player.image || avatar; img.onerror = () => { img.src = avatar; };
-        document.getElementById('timer').style.color = 'var(--neon-red)';
+    socket.on('auctionPaused', () => {
+        document.getElementById('pause-btn').classList.add('hidden');
+        document.getElementById('resume-btn').classList.remove('hidden');
+        document.getElementById('timer').innerText = "STOP";
     });
 
-    socket.on('timerUpdate', t => document.getElementById('timer').innerText = t);
-    socket.on('bidUpdated', d => { document.getElementById('c-bid').innerText = d.bidAmount; document.getElementById('c-bidder').innerText = d.bidderName; });
-    socket.on('auctionPaused', () => { document.getElementById('timer').innerText = "PAUSED"; document.getElementById('pause-btn').classList.add('hidden'); document.getElementById('resume-btn').classList.remove('hidden'); });
-    socket.on('auctionResumed', () => { document.getElementById('pause-btn').classList.remove('hidden'); document.getElementById('resume-btn').classList.add('hidden'); });
+    socket.on('auctionResumed', () => {
+        document.getElementById('resume-btn').classList.add('hidden');
+        document.getElementById('pause-btn').classList.remove('hidden');
+    });
 </script>
 </body>
 </html>
