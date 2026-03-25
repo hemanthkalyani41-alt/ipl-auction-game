@@ -49,18 +49,22 @@ function sellPlayer(roomCode) {
         if(winner) { winner.purseRemaining -= (room.currentBid / 100); winner.squad.push(room.currentPlayer); }
         io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', amount: room.currentBid, users: room.users });
     } else { io.to(roomCode).emit('playerUnsold'); }
-    setTimeout(() => { nextPlayer(roomCode); }, 3500);
+    
+    // THE CHANGE: Don't pull automatically. Ask the host!
+    setTimeout(() => { promptHostForNextPlayer(roomCode); }, 3500);
 }
 
-function nextPlayer(roomCode) {
+// NEW FUNCTION: Hands control back to the host
+function promptHostForNextPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    room.isSelling = false; room.bidHistory = [];
+    room.isSelling = false; 
+    room.bidHistory = [];
+    room.currentPlayer = null; // Clear the block
+    
     if (room.availablePlayers.length === 0) { finishAuction(roomCode); return; }
-    room.currentPlayer = room.availablePlayers.shift();
-    room.currentBid = room.currentPlayer.basePrice;
-    room.highestBidder = null;
-    io.to(roomCode).emit('newPlayerUp', { player: room.currentPlayer });
-    startTimer(roomCode, false);
+    
+    // Tell everyone to wait, and send the host the list of remaining players
+    io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
 }
 
 async function finishAuction(roomCode) {
@@ -79,9 +83,10 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
     let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
-    let shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 80);
     
-    // Default Rules
+    // THE CHANGE: Increased pool limit to 100 players
+    let shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 100);
+    
     settings.maxSquad = 15;
     settings.maxOverseas = 4;
 
@@ -97,12 +102,10 @@ io.on('connection', (socket) => {
       socket.join(roomCode);
       const startMoney = activeRooms[roomCode].settings.startingPurse;
       activeRooms[roomCode].users.push({ id: socket.id, name: `Player ${activeRooms[roomCode].users.length + 1}`, purseRemaining: startMoney, squad: [] });
-      // Send rules to joining player
       socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
   });
 
-  // Host updates rules before starting
   socket.on('updateRulesAndStart', (data) => {
       const room = activeRooms[data.roomCode];
       if (room && room.hostId === socket.id) {
@@ -111,13 +114,29 @@ io.on('connection', (socket) => {
           io.to(data.roomCode).emit('rulesUpdated', room.settings);
           
           room.auctionStarted = true; 
-          nextPlayer(data.roomCode);
+          // THE CHANGE: Trigger the manual selection instead of random start
+          promptHostForNextPlayer(data.roomCode);
+      }
+  });
+
+  // NEW: Host manually brings a player to the block
+  socket.on('bringPlayerUp', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room && room.hostId === socket.id && !room.currentPlayer) {
+          const pIndex = room.availablePlayers.findIndex(p => p.name === data.playerName);
+          if (pIndex !== -1) {
+              room.currentPlayer = room.availablePlayers.splice(pIndex, 1)[0];
+              room.currentBid = room.currentPlayer.basePrice;
+              room.highestBidder = null;
+              io.to(data.roomCode).emit('newPlayerUp', { player: room.currentPlayer });
+              startTimer(data.roomCode, false);
+          }
       }
   });
 
   socket.on('placeBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null) return;
+      if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null || !room.currentPlayer) return;
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
@@ -132,17 +151,17 @@ io.on('connection', (socket) => {
 
   socket.on('pauseAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id) { clearInterval(room.timerInterval); room.timerInterval = null; io.to(roomCode).emit('auctionPaused'); }
+      if (room && room.hostId === socket.id && room.currentPlayer) { clearInterval(room.timerInterval); room.timerInterval = null; io.to(roomCode).emit('auctionPaused'); }
   });
 
   socket.on('resumeAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id) { startTimer(roomCode, true); io.to(roomCode).emit('auctionResumed'); }
+      if (room && room.hostId === socket.id && room.currentPlayer) { startTimer(roomCode, true); io.to(roomCode).emit('auctionResumed'); }
   });
 
   socket.on('undoBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && room.bidHistory.length > 0) {
+      if (room && room.hostId === socket.id && room.bidHistory.length > 0 && room.currentPlayer) {
           const prev = room.bidHistory.pop();
           room.currentBid = prev.amount; room.highestBidder = prev.bidder;
           io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: room.highestBidder ? room.highestBidder.name : 'None' });
@@ -150,7 +169,6 @@ io.on('connection', (socket) => {
       }
   });
 
-  // End Early Button Logic
   socket.on('endAuctionEarly', (roomCode) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id) {
