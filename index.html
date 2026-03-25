@@ -3,191 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IPL Command Center</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&display=swap" rel="stylesheet">
+    <title>IPL Pro: Esports Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        :root { --gold: #D4AF37; --neon-red: #ff073a; --neon-blue: #00d4ff; --text-main: #f8fafc; --safe-green: #10b981; }
+        :root { 
+            --gold: #ffcc00; 
+            --neon-red: #ff0055; 
+            --neon-blue: #00e5ff; 
+            --bg-base: #090a0f;
+            --panel-bg: rgba(16, 20, 31, 0.85);
+            --text-main: #e0e6ed; 
+            --safe-green: #00ff88; 
+        }
         
         body { 
-            font-family: 'Montserrat', sans-serif; 
-            background-color: #050814; 
-            background-image: repeating-linear-gradient(
-                -45deg,
-                rgba(0, 212, 255, 0.05),
-                rgba(0, 212, 255, 0.05) 2px,
-                transparent 2px,
-                transparent 30px
-            );
+            font-family: 'Rajdhani', sans-serif; 
+            background-color: var(--bg-base); 
+            background-image: 
+                linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
             color: var(--text-main); 
-            /* BUG FIX: Increased bottom padding from 20px to 120px to save chat from mobile bezels */
             margin: 0; padding: 75px 10px 120px 10px; 
             overflow-x: hidden; 
         }
 
-        .navbar { position: fixed; top: 0; left: 0; width: 100%; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
-        .purse-container { width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
-        .purse-filler { width: 100%; height: 100%; background: var(--gold); transition: width 0.5s ease; }
+        h1, h2, h3, .timer, .c-bid, .orbitron { font-family: 'Orbitron', sans-serif; }
 
+        /* SLEEK ESPORTS NAVBAR */
+        .navbar { position: fixed; top: 0; left: 0; width: 100vw; height: 65px; background: rgba(5, 8, 15, 0.95); border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; box-sizing: border-box; z-index: 2000; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 229, 255, 0.15); }
+        .purse-container { width: 140px; height: 6px; background: #222; overflow: hidden; margin-top: 6px; border-radius: 2px; }
+        .purse-filler { width: 100%; height: 100%; background: var(--gold); transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px var(--gold); }
+        
+        .svg-icon { width: 24px; height: 24px; fill: var(--neon-blue); cursor: pointer; transition: 0.2s; }
+        .svg-icon:active { transform: scale(0.9); }
+
+        /* SLIDING SPY MENU */
         .spy-menu { 
-            position: fixed; top: 0; right: 0; width: 260px; height: 100%; 
-            background: #080d1a; z-index: 3000; padding: 20px; 
-            border-left: 2px solid var(--neon-blue); box-shadow: -10px 0 30px rgba(0,0,0,0.8); 
-            overflow-y: auto; box-sizing: border-box;
-            transform: translateX(100%); 
-            transition: transform 0.3s ease-in-out; 
+            position: fixed; top: 0; right: 0; width: 280px; height: 100%; 
+            background: rgba(10, 14, 23, 0.98); z-index: 3000; padding: 20px; 
+            border-left: 2px solid var(--neon-blue); box-shadow: -10px 0 30px rgba(0,0,0,0.9); 
+            overflow-y: auto; box-sizing: border-box; backdrop-filter: blur(15px);
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
         }
         .spy-menu.active { transform: translateX(0); } 
-        .spy-close { font-size: 2em; color: var(--neon-blue); cursor: pointer; float: right; }
+        .spy-close { font-size: 2em; color: var(--neon-red); cursor: pointer; float: right; font-family: 'Orbitron'; line-height: 0.5; }
 
+        /* GLASSMORPHISM PANELS */
         .container { 
             width: 100%; max-width: 500px; margin: 0 auto 15px auto; 
-            background: rgba(10, 15, 26, 0.95); padding: 20px; border-radius: 12px; 
-            border: 1px solid rgba(0, 212, 255, 0.3); border-top: 3px solid var(--neon-blue); 
+            background: var(--panel-bg); padding: 20px; 
+            border: 1px solid rgba(0, 229, 255, 0.2); 
             box-sizing: border-box; position: relative; 
-            box-shadow: 0 0 25px rgba(0, 212, 255, 0.1), inset 0 0 10px rgba(0, 212, 255, 0.05); 
-            backdrop-filter: blur(5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 20px rgba(0, 229, 255, 0.05); 
+            backdrop-filter: blur(8px);
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
         }
 
-        .scout-box { background: rgba(0, 212, 255, 0.1); border: 1px dashed var(--neon-blue); padding: 8px; border-radius: 8px; margin-bottom: 10px; font-size: 0.8em; display: flex; align-items: center; gap: 10px; }
-        .scout-tag { font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-size: 0.75em; }
+        .scout-box { background: rgba(0, 229, 255, 0.05); border-left: 3px solid var(--neon-blue); padding: 10px; margin-bottom: 12px; font-size: 0.9em; display: flex; align-items: center; gap: 10px; }
+        .scout-tag { font-weight: 700; padding: 3px 8px; color: #000; font-family: 'Orbitron'; font-size: 0.75em; letter-spacing: 1px; }
 
-        .host-selection-panel { background: #1a1005; padding: 15px; border-radius: 8px; border: 1px dashed var(--gold); margin-bottom: 10px; box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.1); }
+        .host-selection-panel { background: rgba(255, 204, 0, 0.05); padding: 15px; border: 1px solid rgba(255, 204, 0, 0.3); margin-bottom: 10px; }
 
-        .player-card { background: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
-        .player-avatar { width: 80px; height: 80px; border-radius: 10px; border: 2px solid var(--gold); object-fit: cover; }
+        /* ULTIMATE TEAM PLAYER CARD */
+        .player-card { 
+            background: linear-gradient(135deg, rgba(20,25,35,1) 0%, rgba(10,12,18,1) 100%);
+            padding: 15px; border: 1px solid #333; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; 
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+            clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+            border-left: 4px solid var(--gold);
+        }
+        .player-avatar { width: 85px; height: 85px; object-fit: cover; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); background: #000; padding: 2px; border: 1px solid var(--gold); }
         
-        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-box { background: #050814; padding: 10px; border-radius: 8px; border: 1px solid rgba(0, 212, 255, 0.2); text-align: center; box-shadow: 0 0 10px rgba(0, 212, 255, 0.05); }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-box { background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: center; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
 
-        .squad-section { background: #050814; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(0, 212, 255, 0.2); text-align: left; }
-        .squad-list { max-height: 80px; overflow-y: auto; font-size: 0.85em; padding: 0; margin: 5px 0; list-style: none; }
+        .squad-section { background: rgba(0,0,0,0.5); padding: 12px; margin-bottom: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: left; }
+        .squad-list { max-height: 90px; overflow-y: auto; font-size: 0.9em; padding: 0; margin: 8px 0 0 0; list-style: none; color: #b0bec5;}
 
-        .chat-section { background: #000; border-radius: 8px; padding: 10px; border: 1px solid #333; margin-top: 15px; }
-        #chat-messages { height: 70px; overflow-y: auto; text-align: left; font-size: 0.85em; margin-bottom: 5px; color: #ccc; }
+        .chat-section { background: #030407; padding: 10px; border: 1px solid #222; margin-top: 15px; border-left: 2px solid var(--neon-blue); }
+        #chat-messages { height: 80px; overflow-y: auto; text-align: left; font-size: 0.9em; margin-bottom: 8px; color: #ccc; }
 
-        .bid-btn { height: 60px; font-size: 1.3em; background: linear-gradient(180deg, var(--gold), #8a6d1a); color: #000; border: none; border-radius: 10px; font-weight: 900; width: 100%; cursor: pointer; box-shadow: 0 5px 15px rgba(212,175,55,0.3); }
-        .bid-btn:active { transform: scale(0.96); }
-        .bid-btn.disabled { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
+        /* GAMER BUTTONS */
+        .bid-btn { 
+            height: 65px; font-size: 1.5em; 
+            background: linear-gradient(90deg, var(--gold), #b38f00); 
+            color: #000; border: none; font-weight: 900; width: 100%; cursor: pointer; 
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.4); text-transform: uppercase; letter-spacing: 2px;
+            clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+            transition: 0.1s; font-family: 'Orbitron';
+        }
+        .bid-btn:active { transform: scale(0.97); background: #fff; box-shadow: 0 0 30px #fff; }
+        .bid-btn.disabled { background: #333; color: #666; box-shadow: none; pointer-events: none; }
 
-        .host-panel { background: rgba(255, 7, 58, 0.05); padding: 10px; border-radius: 8px; display: flex; gap: 5px; margin-bottom: 10px; justify-content: center; border: 1px solid var(--neon-red); flex-wrap: wrap; }
-        .host-panel button { width: auto; font-size: 0.7em; padding: 8px 10px; margin: 0; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-weight: bold;}
-        .host-panel button:active { background: #444; }
+        .host-panel { background: rgba(255, 0, 85, 0.05); padding: 10px; display: flex; gap: 8px; margin-bottom: 15px; justify-content: center; border: 1px solid rgba(255, 0, 85, 0.3); flex-wrap: wrap; }
+        .host-panel button { flex: 1; font-size: 0.8em; padding: 10px; margin: 0; background: #111; color: var(--text-main); border: 1px solid #444; font-family: 'Rajdhani'; font-weight: 700; text-transform: uppercase; cursor: pointer;}
+        .host-panel button:active { background: #333; }
 
         .hidden { display: none !important; }
-        input, select { width: 100%; padding: 12px; margin-bottom: 15px; box-sizing: border-box; background: #222; color: #fff; border: 1px solid #444; border-radius: 5px; font-family: 'Montserrat'; }
+        
+        input, select { 
+            width: 100%; padding: 12px; margin-bottom: 15px; box-sizing: border-box; 
+            background: rgba(0,0,0,0.6); color: var(--neon-blue); border: 1px solid rgba(0, 229, 255, 0.3); 
+            font-family: 'Orbitron'; outline: none; transition: 0.3s; 
+        }
+        input:focus, select:focus { border-color: var(--neon-blue); box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); background: rgba(0, 229, 255, 0.05); }
+
+        /* SCROLLBAR STYLING */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: var(--neon-blue); }
     </style>
 </head>
 <body>
 
 <nav class="navbar">
-    <div style="text-align: left;">
-        <div style="color:var(--gold); font-weight:800; font-size: 0.8em; margin-bottom: 2px;">
-            <span style="color:#fff">ROOM:</span> <span id="nav-code" style="color:var(--neon-blue); margin-right: 10px;">---</span> ₹<span id="nav-purse">100</span> Cr
+    <div style="text-align: left; display: flex; align-items: center; gap: 10px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--gold)"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+        <div>
+            <div style="color:var(--text-main); font-family:'Orbitron'; font-weight:900; font-size: 0.8em; letter-spacing: 1px;">
+                <span id="nav-code" style="color:var(--neon-blue);">ROOM</span> | ₹<span id="nav-purse" style="color:var(--gold);">100</span> Cr
+            </div>
+            <div class="purse-container"><div id="purse-bar" class="purse-filler"></div></div>
         </div>
-        <div class="purse-container"><div id="purse-bar" class="purse-filler"></div></div>
     </div>
-    <div onclick="toggleSpy()" style="color:var(--neon-blue); font-size: 1.5em; cursor: pointer;">📊</div>
+    <svg onclick="toggleSpy()" class="svg-icon" viewBox="0 0 24 24"><path d="M3 3h2v18H3V3zm6 8h2v10H9V11zm6-5h2v15h-2V6zm6 4h2v11h-2V10z"/></svg>
 </nav>
 
 <div id="spy-menu" class="spy-menu">
     <span class="spy-close" onclick="toggleSpy()">×</span>
-    <h2 style="color:var(--neon-blue); margin-top:0;">LEAGUE TRACKER</h2>
+    <h2 style="color:var(--neon-blue); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">LEAGUE HUD</h2>
     <div id="spy-list"></div>
 </div>
 
 <div class="container" id="home-screen">
-    <h1 style="font-size: 1.5em; text-align:center;">SELECT FORMAT</h1>
+    <h1 style="text-align:center; color: var(--neon-blue); letter-spacing: 2px;">CREATE MATCH</h1>
     <select id="format-select">
-        <option value="T20">T20 Mega Auction</option>
-        <option value="ODI">ODI World Cup</option>
-        <option value="Test">Test Championship</option>
+        <option value="T20">T20 MEGA AUCTION</option>
+        <option value="ODI">ODI DRAFT</option>
+        <option value="Test">TEST CHAMPIONSHIP</option>
     </select>
-    <small>Starting Purse (Cr)</small>
+    <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">STARTING PURSE (CR)</div>
     <input type="number" id="purse-input" value="100">
-    <button onclick="createGame()" style="width:100%; background:var(--neon-blue); padding:15px; border-radius:8px; font-weight:800; color:#000; border:none; box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);">CREATE LOBBY</button>
-    <div style="text-align: center; margin: 15px 0; color: #555;">OR</div>
+    <button onclick="createGame()" style="width:100%; background:var(--neon-blue); padding:15px; font-family:'Orbitron'; font-weight:900; color:#000; border:none; cursor: pointer; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);">INITIALIZE SERVER</button>
+    
+    <div style="text-align: center; margin: 25px 0; color: #444; font-family:'Orbitron';">— OR CONNECT —</div>
+    
     <div style="display:flex; gap:10px;">
-        <input type="text" id="join-input" placeholder="ROOM CODE" style="margin:0;">
-        <button onclick="joinGame()" style="width:90px; background:#fff; color:#000; margin:0; border:none; border-radius:5px; font-weight:bold;">JOIN</button>
+        <input type="text" id="join-input" placeholder="ENTER ROOM CODE" style="margin:0;">
+        <button onclick="joinGame()" style="width:100px; background:var(--text-main); color:#000; margin:0; border:none; font-family:'Orbitron'; font-weight:900; cursor:pointer;">JOIN</button>
     </div>
 </div>
 
 <div class="container hidden" id="settings-screen">
-    <h1 style="font-size: 1.5em; text-align:center; color: var(--gold);">ROOM SETTINGS</h1>
-    <div style="text-align:center; font-size:1.2em; margin-bottom: 20px;">Room Code: <b style="color:var(--neon-blue);" id="display-room-code"></b></div>
-    <small>Max Players Per Squad</small>
+    <h1 style="text-align:center; color: var(--gold); letter-spacing: 2px;">HOST OVERRIDE</h1>
+    <div style="text-align:center; font-size:1.2em; margin-bottom: 25px; background: rgba(0,0,0,0.5); padding: 10px; border: 1px dashed var(--neon-blue);">
+        LINK CODE: <b style="color:var(--neon-blue); font-size: 1.5em; letter-spacing: 3px;" id="display-room-code"></b>
+    </div>
+    <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">MAX SQUAD SIZE</div>
     <input type="number" id="max-squad" value="15">
-    <small>Max Overseas (✈️) Players</small>
+    <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">MAX OVERSEAS SLOTS</div>
     <input type="number" id="max-os" value="4">
-    <button onclick="saveAndStart()" style="width:100%; background:var(--neon-red); padding:15px; border-radius:8px; font-weight:800; color:#fff; border:none; margin-top:10px; box-shadow: 0 0 15px rgba(255, 7, 58, 0.4);">SAVE RULES & ENTER ROOM</button>
+    <button onclick="saveAndStart()" style="width:100%; background:var(--neon-red); padding:15px; font-family:'Orbitron'; font-weight:900; color:#fff; border:none; cursor:pointer; margin-top:10px; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);">DEPLOY MATCH</button>
 </div>
 
 <div class="container hidden" id="auction-screen">
     
     <div id="host-controls" class="host-panel hidden">
-        <button id="pause-btn">⏸ Pause</button>
-        <button id="resume-btn" class="hidden">▶ Resume</button>
-        <button id="undo-btn">⏪ Undo</button>
-        <button id="end-early-btn" style="background:var(--neon-red); color:white; border-color:var(--neon-red);">🛑 End Early</button>
+        <button id="pause-btn" style="color: var(--gold);">⏸ PAUSE</button>
+        <button id="resume-btn" class="hidden" style="color: var(--safe-green);">▶ RESUME</button>
+        <button id="undo-btn">⏪ UNDO</button>
+        <button id="end-early-btn" style="color: var(--neon-red); border-color: var(--neon-red);">🛑 END</button>
     </div>
 
     <div id="host-selection-panel" class="host-selection-panel hidden">
-        <div style="color: var(--gold); font-weight: 800; margin-bottom: 5px;">👑 AUCTIONEER DECK</div>
-        <select id="next-player-dropdown" style="margin-bottom: 10px;"></select>
-        <button id="send-to-block-btn" style="width: 100%; padding: 10px; background: var(--safe-green); color: #fff; border: none; border-radius: 5px; font-weight: bold;">SEND TO BLOCK ▶</button>
+        <div style="color: var(--gold); font-family:'Orbitron'; font-weight: 900; margin-bottom: 8px; font-size: 0.9em;">👑 AUCTIONEER DECK</div>
+        <select id="next-player-dropdown" style="margin-bottom: 10px; background: rgba(0,0,0,0.8);"></select>
+        <button id="send-to-block-btn" style="width: 100%; padding: 12px; background: var(--safe-green); color: #000; border: none; font-family:'Orbitron'; font-weight: 900; cursor: pointer;">SEND TO BLOCK</button>
     </div>
 
     <div class="scout-box">
-        <div id="scout-tag" class="scout-tag" style="background: var(--neon-blue); color: #000;">SCOUT</div>
-        <div id="scout-msg" style="line-height: 1.2;">Waiting for player...</div>
+        <div id="scout-tag" class="scout-tag" style="background: var(--neon-blue);">AI SCOUT</div>
+        <div id="scout-msg" style="line-height: 1.2; font-family: 'Rajdhani';">Establishing connection...</div>
     </div>
 
     <div class="player-card">
         <img id="p-img" class="player-avatar" src="" referrerpolicy="no-referrer">
-        <div style="text-align: left;">
-            <h2 id="p-name" style="margin:0; font-size: 1.2em; text-transform: uppercase;"></h2>
-            <div id="p-info" style="color:var(--text-muted); font-size: 0.8em; margin: 3px 0;"></div>
-            <div style="color: var(--gold); font-weight: 800;">BASE: ₹<span id="p-base"></span>L</div>
+        <div style="text-align: left; flex-grow: 1;">
+            <h2 id="p-name" style="margin:0; font-size: 1.4em; text-transform: uppercase; color: #fff;"></h2>
+            <div id="p-info" style="color:var(--neon-blue); font-size: 0.9em; margin: 2px 0; font-weight: 700;"></div>
+            <div style="color: var(--gold); font-weight: 900; font-family: 'Orbitron'; margin-top: 5px;">BASE: ₹<span id="p-base"></span>L</div>
         </div>
     </div>
 
     <div class="dashboard-grid">
         <div class="stat-box" style="text-align:left;">
-            <small style="color:var(--text-muted)">CURRENT BID</small><br>
-            <span style="font-size: 1.3em; font-weight: 800; color: var(--gold);">₹<span id="c-bid">0</span>L</span><br>
-            <small id="c-bidder" style="color: #fff;">None</small>
+            <div style="color:var(--text-muted); font-size: 0.8em; font-family:'Orbitron';">CURRENT BID</div>
+            <div style="font-size: 1.6em; font-weight: 900; color: var(--gold); font-family: 'Orbitron'; margin: 5px 0;">₹<span id="c-bid">0</span>L</div>
+            <div id="c-bidder" style="color: #fff; font-weight: 700;">None</div>
         </div>
-        <div class="stat-box" style="display:flex; align-items:center; justify-content:center;">
-            <div id="timer" style="font-size: 2.8em; font-weight: 900; color: var(--neon-red);">--</div>
+        <div class="stat-box" style="display:flex; align-items:center; justify-content:center; background: rgba(255,0,85,0.05);">
+            <div id="timer" class="timer" style="font-size: 3.5em; font-weight: 900; color: var(--neon-red); text-shadow: 0 0 15px rgba(255,0,85,0.5);">--</div>
         </div>
     </div>
 
     <div class="squad-section">
-        <div style="display:flex; justify-content:space-between;">
-            <small style="color:var(--gold); font-weight:700;">📋 MY SQUAD (<span id="squad-count">0</span>/<span id="rule-max-squad">15</span>)</small>
-            <small style="color:#aaa;">✈️ <span id="os-count">0</span>/<span id="rule-max-os">4</span></small>
+        <div style="display:flex; justify-content:space-between; font-family: 'Orbitron'; font-size: 0.85em;">
+            <span style="color:var(--neon-blue);">SQUAD: <span id="squad-count" style="color:#fff">0</span>/<span id="rule-max-squad">15</span></span>
+            <span style="display:flex; align-items:center; gap:4px; color:#aaa;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#aaa"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                <span id="os-count" style="color:#fff">0</span>/<span id="rule-max-os">4</span>
+            </span>
         </div>
         <ul class="squad-list" id="my-squad-list">
-            <li style="color:#444;">No players bought yet...</li>
+            <li style="color:#555; font-style: italic;">Awaiting acquisitions...</li>
         </ul>
     </div>
 
-    <button id="bid-btn" class="bid-btn disabled">WAITING FOR PLAYER</button>
+    <button id="bid-btn" class="bid-btn disabled">SYSTEM STANDBY</button>
 
     <div class="chat-section">
         <div id="chat-messages"></div>
-        <div style="display:flex; gap:5px;">
-            <input type="text" id="chat-input" placeholder="Comms..." style="margin:0; height:35px; padding:5px; flex-grow:1;">
-            <button id="send-btn" style="width:70px; margin:0; padding:0; height:35px; background:var(--neon-blue); color:#000; border:none; font-weight:bold; border-radius:5px;">Send</button>
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="chat-input" placeholder="Comms link..." style="margin:0; height:40px; background: rgba(0,0,0,0.8); border: 1px solid #333; border-radius: 0;">
+            <button id="send-btn" style="width:80px; margin:0; background:var(--neon-blue); color:#000; border:none; font-family:'Orbitron'; font-weight:900; cursor:pointer;">SEND</button>
         </div>
     </div>
 </div>
 
 <div class="container hidden" id="results-screen">
-    <h1 style="color: var(--gold); text-align: center;">🏆 FINAL RANKINGS</h1>
-    <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">The auction has officially concluded.</p>
+    <h1 style="color: var(--gold); text-align: center; font-size: 2em; text-shadow: 0 0 10px rgba(255,204,0,0.3);">MATCH RESULTS</h1>
+    <div style="text-align: center; color: var(--neon-blue); margin-bottom: 25px; font-family: 'Orbitron'; font-size: 0.9em; letter-spacing: 1px;">SYSTEM OFFLINE</div>
     <div id="leaderboard-container"></div>
-    <button onclick="location.reload()" style="width:100%; margin-top:20px; background:var(--neon-blue); color:#000; padding: 15px; border:none; border-radius:8px; font-weight:800;">PLAY AGAIN</button>
+    <button onclick="location.reload()" style="width:100%; margin-top:20px; background:var(--neon-blue); color:#000; padding: 15px; border:none; font-family:'Orbitron'; font-weight:900; font-size: 1.2em; cursor:pointer; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);">INITIALIZE NEW MATCH</button>
 </div>
 
 <audio id="sfx-bid" src="https://actions.google.com/sounds/v1/ui/pop_up_on.ogg" preload="auto"></audio>
@@ -203,7 +251,7 @@
     function speakAuction(text) {
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.1; utterance.pitch = 1.0;
+            utterance.rate = 1.15; utterance.pitch = 0.9; // Slightly deeper, faster voice
             window.speechSynthesis.speak(utterance);
         }
     }
@@ -268,19 +316,19 @@
     });
 
     socket.on('waitingForNextPlayer', list => {
-        document.getElementById('p-name').innerText = "WAITING FOR HOST";
-        document.getElementById('p-info').innerText = "The Auctioneer is choosing the next player...";
+        document.getElementById('p-name').innerText = "SYSTEM STANDBY";
+        document.getElementById('p-info').innerText = "Awaiting Host Selection...";
         document.getElementById('p-base').innerText = "0";
         document.getElementById('c-bid').innerText = "0";
         document.getElementById('c-bidder').innerText = "None";
         document.getElementById('timer').innerText = "--";
         
-        document.getElementById('scout-tag').innerText = "STANDBY";
-        document.getElementById('scout-tag').style.background = "var(--neon-blue)";
-        document.getElementById('scout-msg').innerText = "Analyzing the deck...";
+        document.getElementById('scout-tag').innerText = "IDLE";
+        document.getElementById('scout-tag').style.background = "#555";
+        document.getElementById('scout-msg').innerText = "Processing deck...";
 
         document.getElementById('bid-btn').classList.add('disabled');
-        document.getElementById('bid-btn').innerText = "WAITING...";
+        document.getElementById('bid-btn').innerText = "STANDBY";
 
         if (isHost) {
             const dropdown = document.getElementById('next-player-dropdown');
@@ -304,21 +352,24 @@
         currentHiddenRating = d.player.hiddenRating;
         currentIsOverseas = d.player.country !== 'India'; 
         
+        // SVG Icon string for Overseas Flag indicator
+        const osIcon = currentIsOverseas ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="var(--neon-blue)" style="vertical-align: middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>` : '';
+
         document.getElementById('p-name').innerText = d.player.name;
         document.getElementById('p-base').innerText = d.player.basePrice;
-        document.getElementById('p-info').innerText = `${d.player.role} | ${d.player.country} ${currentIsOverseas ? '✈️' : ''}`;
+        document.getElementById('p-info').innerHTML = `${d.player.role} | ${d.player.country} ${osIcon}`;
         document.getElementById('c-bid').innerText = d.player.basePrice;
         document.getElementById('c-bidder').innerText = "None";
         document.getElementById('timer').style.color = "var(--neon-red)";
         
-        document.getElementById('scout-tag').innerText = "WATCHING";
+        document.getElementById('scout-tag').innerText = "ACTIVE";
         document.getElementById('scout-tag').style.background = "var(--neon-blue)";
-        document.getElementById('scout-msg').innerText = "Awaiting bids...";
+        document.getElementById('scout-msg').innerText = "Target acquired. Awaiting bids...";
 
         document.getElementById('bid-btn').classList.remove('disabled');
-        document.getElementById('bid-btn').innerText = "PLACE BID";
+        document.getElementById('bid-btn').innerText = "TRANSMIT BID";
         
-        const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=D4AF37&color=000&bold=true`;
+        const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=ffcc00&color=000&bold=true`;
         document.getElementById('p-img').src = d.player.image || avatar;
         document.getElementById('p-img').onerror = function() { this.src = avatar; };
         
@@ -334,8 +385,8 @@
         if (document.getElementById('bid-btn').classList.contains('disabled')) return;
         
         const currentOsCount = mySquadData.filter(p => p.country !== 'India').length;
-        if(mySquadData.length >= myRules.maxSquad) { alert("Maximum squad size reached!"); return; }
-        if(currentIsOverseas && currentOsCount >= myRules.maxOverseas) { alert("Maximum overseas limit reached!"); return; }
+        if(mySquadData.length >= myRules.maxSquad) { alert("Maximum squad capacity reached."); return; }
+        if(currentIsOverseas && currentOsCount >= myRules.maxOverseas) { alert("Overseas quota exceeded."); return; }
         
         socket.emit('placeBid', room); 
         playSfx('sfx-bid'); 
@@ -350,9 +401,9 @@
         const scoutTag = document.getElementById('scout-tag');
         const scoutMsg = document.getElementById('scout-msg');
 
-        if(valueRatio < 1.5) { scoutTag.innerText = "STEAL"; scoutTag.style.background = "var(--safe-green)"; scoutMsg.innerText = "Excellent value."; }
-        else if(valueRatio < 3.5) { scoutTag.innerText = "FAIR"; scoutTag.style.background = "var(--gold)"; scoutMsg.innerText = "Price is getting high."; }
-        else { scoutTag.innerText = "OVERPAID"; scoutTag.style.background = "var(--neon-red)"; scoutMsg.innerText = "Warning: Too expensive!"; }
+        if(valueRatio < 1.5) { scoutTag.innerText = "STEAL"; scoutTag.style.background = "var(--safe-green)"; scoutMsg.innerText = "High value target."; }
+        else if(valueRatio < 3.5) { scoutTag.innerText = "FAIR"; scoutTag.style.background = "var(--gold)"; scoutMsg.innerText = "Market value approaching."; }
+        else { scoutTag.innerText = "OVERPAID"; scoutTag.style.background = "var(--neon-red)"; scoutMsg.innerText = "Warning: Critical fund drain detected!"; }
     });
 
     socket.on('timerUpdate', t => {
@@ -361,7 +412,7 @@
     });
 
     socket.on('playerSold', d => {
-        speakAuction(`Sold to ${d.winnerName} for ${d.amount} Lakhs!`); 
+        speakAuction(`Sold to ${d.winnerName} for ${d.amount} Lakhs.`); 
         
         const me = d.users.find(u => u.id === socket.id);
         if(me) {
@@ -376,8 +427,8 @@
             const list = document.getElementById('my-squad-list');
             list.innerHTML = '';
             me.squad.forEach(p => {
-                let flag = p.country !== 'India' ? '✈️' : '';
-                list.innerHTML += `<li style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #222;"><span>🏏 ${p.name} ${flag}</span><span style="color:var(--gold)">₹${p.basePrice}L</span></li>`;
+                let flag = p.country !== 'India' ? '<span style="color:var(--neon-blue); font-size: 0.8em;">[INT]</span>' : '';
+                list.innerHTML += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span><span style="color:#555">▶</span> ${p.name} ${flag}</span><span style="color:var(--gold); font-family:'Orbitron'; font-weight:700;">₹${p.basePrice}L</span></li>`;
             });
         }
 
@@ -385,17 +436,18 @@
         spyList.innerHTML = '';
         d.users.forEach(u => {
             spyList.innerHTML += `
-                <div style="border-bottom:1px solid #333; padding:10px 0;">
-                    <b style="color:var(--neon-blue)">${u.name}</b><br>
-                    <small>Purse: ₹${u.purseRemaining.toFixed(2)} Cr</small><br>
-                    <small style="color:var(--text-muted)">Squad: ${u.squad.length} players</small>
+                <div style="background: rgba(0,0,0,0.4); border: 1px solid #222; padding:12px; margin-bottom: 8px; border-left: 3px solid var(--neon-blue);">
+                    <div style="color:var(--text-main); font-family:'Orbitron'; font-weight:700; font-size: 1.1em; display:flex; justify-content:space-between;">
+                        ${u.name} <span style="color:var(--gold)">₹${u.purseRemaining.toFixed(2)}Cr</span>
+                    </div>
+                    <div style="color:var(--text-muted); font-size: 0.85em; margin-top: 5px;">Roster: ${u.squad.length} / ${myRules.maxSquad}</div>
                 </div>`;
         });
     });
 
     socket.on('playerUnsold', () => { 
         document.getElementById('p-name').innerText = "UNSOLD"; 
-        speakAuction("Unsold. Moving to the next player."); 
+        speakAuction("Player Unsold."); 
     });
 
     document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
@@ -419,21 +471,20 @@
         const board = document.getElementById('leaderboard-container');
         board.innerHTML = ''; 
         leaderboardData.forEach((team, index) => {
-            let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🎗️';
+            let rankColor = index === 0 ? 'var(--gold)' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : 'var(--neon-blue)';
             board.innerHTML += `
-            <div style="background: #0a0f1a; border: 1px solid var(--neon-blue); border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 0 10px rgba(0,212,255,0.1);">
+            <div style="background: rgba(0,0,0,0.6); border: 1px solid ${rankColor}; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${rankColor};">
                 <div style="text-align: left;">
-                    <h2 style="margin: 0; color: var(--text-main); font-size: 1.2em;">${medal} ${team.name}</h2>
-                    <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.85em;">Players Bought: ${team.squadSize}</p>
+                    <h2 style="margin: 0; color: #fff; font-size: 1.3em;">#${index + 1} ${team.name}</h2>
+                    <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.85em;">Roster Status: ${team.squadSize} Players</p>
                 </div>
-                <div style="background: rgba(212, 175, 55, 0.1); color: var(--gold); padding: 10px; border-radius: 5px; font-weight: 800; border: 1px solid var(--gold);">
-                    ₹${team.purseLeft}Cr Left
+                <div style="color: ${rankColor}; font-family: 'Orbitron'; font-weight: 900; font-size: 1.2em; text-align: right;">
+                    ₹${team.purseLeft}Cr <br><span style="font-size: 0.5em; color: #777;">REMAINING</span>
                 </div>
             </div>`;
         });
     });
 
-    // BUG FIX: Added e.keyCode backup to ensure mobile "Enter" keys trigger the chat
     const sendChatMsg = () => {
         const msg = document.getElementById('chat-input').value.trim();
         if(msg !== "" && room !== "") { 
@@ -445,14 +496,14 @@
     document.getElementById('send-btn').onclick = sendChatMsg;
     document.getElementById('chat-input').addEventListener('keypress', function (e) { 
         if (e.key === 'Enter' || e.keyCode === 13) { 
-            e.preventDefault(); // Stop mobile keyboards from doing weird things
+            e.preventDefault(); 
             sendChatMsg(); 
         } 
     });
 
     socket.on('receiveChatMessage', d => { 
         const box = document.getElementById('chat-messages');
-        box.innerHTML += `<div style="margin-bottom: 4px;"><b style="color:var(--neon-blue)">${d.sender}:</b> <span style="color:#fff">${d.message}</span></div>`;
+        box.innerHTML += `<div style="margin-bottom: 6px;"><b style="color:var(--neon-blue); font-family:'Orbitron'; font-size:0.9em;">[${d.sender}]</b> <span style="color:#fff">${d.message}</span></div>`;
         box.scrollTop = box.scrollHeight;
     });
 </script>
