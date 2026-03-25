@@ -8,7 +8,6 @@
     <style>
         :root { --gold: #D4AF37; --neon-red: #ff073a; --neon-blue: #00d4ff; --text-main: #f8fafc; --safe-green: #10b981; }
         
-        /* 1. SLANTED PARALLEL LINES BACKGROUND */
         body { 
             font-family: 'Montserrat', sans-serif; 
             background-color: #050814; 
@@ -24,23 +23,21 @@
             overflow-x: hidden; 
         }
 
-        .navbar { position: fixed; top: 0; left: 0; width: 100%; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
+        .navbar { position: fixed; top: 0; left: 0; width: 100vw; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
         .purse-container { width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
         .purse-filler { width: 100%; height: 100%; background: var(--gold); transition: width 0.5s ease; }
 
-        /* 2. SPY MENU YELLOW LINE FIX */
         .spy-menu { 
             position: fixed; top: 0; right: 0; width: 260px; height: 100%; 
             background: #080d1a; z-index: 3000; padding: 20px; 
             border-left: 2px solid var(--neon-blue); box-shadow: -10px 0 30px rgba(0,0,0,0.8); 
             overflow-y: auto; box-sizing: border-box;
-            transform: translateX(100%); /* Hides completely off-screen, no peeking borders */
+            transform: translateX(100%); 
             transition: transform 0.3s ease-in-out; 
         }
-        .spy-menu.active { transform: translateX(0); } /* Slides in */
+        .spy-menu.active { transform: translateX(0); } 
         .spy-close { font-size: 2em; color: var(--neon-blue); cursor: pointer; float: right; }
 
-        /* 3. HIGHLIGHTED GLOWING LAYOUT */
         .container { 
             width: 100%; max-width: 500px; margin: 0 auto 15px auto; 
             background: rgba(10, 15, 26, 0.95); padding: 20px; border-radius: 12px; 
@@ -83,7 +80,9 @@
 
 <nav class="navbar">
     <div style="text-align: left;">
-        <div style="color:var(--gold); font-weight:800; font-size: 0.9em;">🏏 ₹<span id="nav-purse">100</span> Cr</div>
+        <div style="color:var(--gold); font-weight:800; font-size: 0.8em; margin-bottom: 2px;">
+            <span style="color:#fff">ROOM:</span> <span id="nav-code" style="color:var(--neon-blue); margin-right: 10px;">---</span> ₹<span id="nav-purse">100</span> Cr
+        </div>
         <div class="purse-container"><div id="purse-bar" class="purse-filler"></div></div>
     </div>
     <div onclick="toggleSpy()" style="color:var(--neon-blue); font-size: 1.5em; cursor: pointer;">📊</div>
@@ -237,6 +236,9 @@
         document.getElementById('home-screen').classList.add('hidden'); 
         document.getElementById('settings-screen').classList.remove('hidden');
         document.getElementById('display-room-code').innerText = room;
+        
+        // THE FIX: Send room code to the Navbar immediately
+        document.getElementById('nav-code').innerText = room; 
     });
 
     function saveAndStart() {
@@ -257,6 +259,9 @@
         room = d.code; 
         document.getElementById('home-screen').classList.add('hidden'); 
         document.getElementById('auction-screen').classList.remove('hidden');
+        
+        // THE FIX: Send room code to Navbar for joined players
+        document.getElementById('nav-code').innerText = room; 
     });
 
     socket.on('rulesUpdated', rules => {
@@ -396,7 +401,6 @@
         speakAuction("Unsold. Moving to the next player."); 
     });
 
-    // END EARLY FUNCTION WIRED CORRECTLY
     document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
     document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
     document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
@@ -411,7 +415,6 @@
         if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
     });
 
-    // LEADERBOARD RENDER LOGIC
     socket.on('auctionEnded', leaderboardData => {
         document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
         document.getElementById('results-screen').classList.remove('hidden');
