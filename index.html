@@ -33,16 +33,19 @@
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-box { background: #111; padding: 10px; border-radius: 8px; border: 1px solid #222; text-align: center; }
 
-        /* SQUAD SECTION (Restored) */
+        /* SQUAD SECTION */
         .squad-section { background: #111; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; text-align: left; }
         .squad-list { max-height: 80px; overflow-y: auto; font-size: 0.85em; padding: 0; margin: 5px 0; list-style: none; }
 
-        /* CHAT SECTION (Restored) */
+        /* CHAT SECTION */
         .chat-section { background: #000; border-radius: 8px; padding: 8px; border: 1px solid #333; margin-top: 10px; }
         #chat-messages { height: 70px; overflow-y: auto; text-align: left; font-size: 0.8em; margin-bottom: 5px; color: #ccc; }
 
         .bid-btn { height: 60px; font-size: 1.3em; background: linear-gradient(180deg, var(--gold), #8a6d1a); color: #000; border: none; border-radius: 10px; font-weight: 900; width: 100%; cursor: pointer; box-shadow: 0 5px 15px rgba(212,175,55,0.3); }
         .bid-btn:active { transform: scale(0.96); }
+
+        .host-panel { background: #3a1111; padding: 8px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 10px; justify-content: center; }
+        .host-panel button { width: auto; font-size: 0.7em; padding: 8px 12px; margin: 0; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-weight: bold;}
 
         .hidden { display: none !important; }
         input, select { width: 100%; padding: 12px; margin-bottom: 10px; box-sizing: border-box; background: #222; color: #fff; border: 1px solid #444; border-radius: 5px; }
@@ -81,6 +84,12 @@
 
 <div class="container hidden" id="auction-screen">
     
+    <div id="host-controls" class="host-panel hidden">
+        <button id="pause-btn">⏸ Pause</button>
+        <button id="resume-btn" class="hidden">▶ Resume</button>
+        <button id="undo-btn">⏪ Undo Bid</button>
+    </div>
+
     <div class="scout-box">
         <div id="scout-tag" class="scout-tag" style="background: var(--gold); color: #000;">SCOUT</div>
         <div id="scout-msg" style="line-height: 1.2;">Waiting for player...</div>
@@ -124,23 +133,32 @@
     </div>
 </div>
 
-<audio id="sfx-bid" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" preload="auto"></audio>
-<audio id="sfx-sold" src="https://assets.mixkit.co/active_storage/sfx/1085/1085-preview.mp3" preload="auto"></audio>
-<audio id="sfx-tick" src="https://assets.mixkit.co/active_storage/sfx/2558/2558-preview.mp3" preload="auto"></audio>
+<audio id="sfx-bid" src="https://actions.google.com/sounds/v1/ui/pop_up_on.ogg" preload="auto"></audio>
+<audio id="sfx-sold" src="https://actions.google.com/sounds/v1/impacts/wood_hit_wood.ogg" preload="auto"></audio>
+<audio id="sfx-tick" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
     const socket = io();
-    let room = ""; let initialPurse = 100; let currentHiddenRating = 0;
+    let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
 
-    // Fixed Audio Function
+    // THE AUDIO UNLOCKER: Ensures phones don't block the sound!
+    function unlockAudio() {
+        ['sfx-bid', 'sfx-sold', 'sfx-tick'].forEach(id => {
+            let el = document.getElementById(id);
+            el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+        });
+        document.body.removeEventListener('click', unlockAudio);
+        document.body.removeEventListener('touchstart', unlockAudio);
+    }
+    document.body.addEventListener('click', unlockAudio);
+    document.body.addEventListener('touchstart', unlockAudio);
+
+    // Reliable Play Function
     function playSfx(id) { 
         const a = document.getElementById(id); 
         a.currentTime = 0; 
-        let playPromise = a.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(error => { console.log("Audio waiting for user tap."); });
-        }
+        a.play().catch(e => console.log("Audio waiting for interaction"));
     }
 
     function toggleSpy() { document.getElementById('spy-menu').classList.toggle('active'); }
@@ -153,9 +171,10 @@
     function joinGame() { socket.emit('joinRoom', document.getElementById('join-input').value.toUpperCase()); }
 
     socket.on('roomCreated', d => { 
-        room = d.code; 
+        room = d.code; isHost = true;
         document.getElementById('home-screen').classList.add('hidden'); 
         document.getElementById('auction-screen').classList.remove('hidden');
+        document.getElementById('host-controls').classList.remove('hidden');
         socket.emit('startAuction', room);
     });
 
@@ -181,6 +200,12 @@
         const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=D4AF37&color=000&bold=true`;
         document.getElementById('p-img').src = d.player.image || avatar;
         document.getElementById('p-img').onerror = function() { this.src = avatar; };
+        
+        // Reset Host buttons
+        if(isHost) {
+            document.getElementById('resume-btn').classList.add('hidden');
+            document.getElementById('pause-btn').classList.remove('hidden');
+        }
     });
 
     document.getElementById('bid-btn').onclick = () => { socket.emit('placeBid', room); playSfx('sfx-bid'); };
@@ -208,12 +233,10 @@
         playSfx('sfx-sold');
         const me = d.users.find(u => u.id === socket.id);
         if(me) {
-            // Update Top Navbar Purse
             const perc = (me.purseRemaining / initialPurse) * 100;
             document.getElementById('purse-bar').style.width = perc + "%";
             document.getElementById('nav-purse').innerText = me.purseRemaining.toFixed(2);
 
-            // Update Restored Squad List
             document.getElementById('squad-count').innerText = me.squad.length;
             const list = document.getElementById('my-squad-list');
             list.innerHTML = '';
@@ -222,7 +245,6 @@
             });
         }
 
-        // Update Spy Menu
         const spyList = document.getElementById('spy-list');
         spyList.innerHTML = '';
         d.users.forEach(u => {
@@ -237,7 +259,27 @@
 
     socket.on('playerUnsold', () => { document.getElementById('p-name').innerText = "UNSOLD"; });
 
-    // Restored Chat Logic
+    // Host Superpowers
+    document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
+    document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
+    document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
+
+    socket.on('auctionPaused', () => {
+        document.getElementById('timer').innerText = "PAUSE";
+        if(isHost) {
+            document.getElementById('pause-btn').classList.add('hidden');
+            document.getElementById('resume-btn').classList.remove('hidden');
+        }
+    });
+
+    socket.on('auctionResumed', () => {
+        if(isHost) {
+            document.getElementById('resume-btn').classList.add('hidden');
+            document.getElementById('pause-btn').classList.remove('hidden');
+        }
+    });
+
+    // Chat
     document.getElementById('send-btn').onclick = () => {
         const msg = document.getElementById('chat-input').value;
         if(msg) { socket.emit('sendChatMessage', { roomCode: room, message: msg }); document.getElementById('chat-input').value = ''; }
