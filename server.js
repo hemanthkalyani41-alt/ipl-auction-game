@@ -46,8 +46,12 @@ function sellPlayer(roomCode) {
     room.isSelling = true; 
     if (room.highestBidder) {
         const winner = room.users.find(u => u.id === room.highestBidder.id);
-        if(winner) { winner.purseRemaining -= (room.currentBid / 100); winner.squad.push(room.currentPlayer); }
-        io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', amount: room.currentBid, users: room.users });
+        if(winner) { 
+            // Math is now directly in Crores
+            winner.purseRemaining -= room.currentBid; 
+            winner.squad.push(room.currentPlayer); 
+        }
+        io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', winnerColor: winner ? winner.color : '#fff', amount: room.currentBid, users: room.users });
     } else { io.to(roomCode).emit('playerUnsold'); }
     
     setTimeout(() => { promptHostForNextPlayer(roomCode); }, 3500);
@@ -67,11 +71,11 @@ async function finishAuction(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
     
-    // BUG FIX: parseFloat ensures the math doesn't crash the server
     let leaderboard = room.users.map(user => ({ 
         name: user.name, 
+        color: user.color,
         squadSize: user.squad.length,
-        purseLeft: parseFloat(user.purseRemaining).toFixed(2) 
+        purseLeft: parseFloat(user.purseRemaining).toFixed(1) 
     })); 
     
     leaderboard.sort((a, b) => b.squadSize - a.squadSize || b.purseLeft - a.purseLeft);
@@ -88,25 +92,30 @@ io.on('connection', (socket) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
     
     let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
-    let shuffled = pool.sort(() => Math.random() - 0.5); 
     
-    // BUG FIX: Convert string input to safe math float immediately
+    // AUTOMATIC CURRENCY CONVERTER: Converts JSON Lakhs to Crores instantly
+    let shuffled = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
+    
     settings.startingPurse = parseFloat(settings.startingPurse) || 100;
     settings.maxSquad = 15;
     settings.maxOverseas = 4;
 
     activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, bidHistory: [], settings: settings };
     socket.join(roomCode);
-    activeRooms[roomCode].users.push({ id: socket.id, name: 'Host', purseRemaining: settings.startingPurse, squad: [] });
+    
+    // Push the Host's custom Franchise Name and Color
+    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#00e5ff', purseRemaining: settings.startingPurse, squad: [] });
     socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
   });
 
-  socket.on('joinRoom', (roomCode) => {
-    roomCode = roomCode.toUpperCase();
+  socket.on('joinRoom', (data) => {
+    const roomCode = data.roomCode.toUpperCase();
     if (activeRooms[roomCode]) {
       socket.join(roomCode);
       const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
-      activeRooms[roomCode].users.push({ id: socket.id, name: `Player ${activeRooms[roomCode].users.length + 1}`, purseRemaining: startMoney, squad: [] });
+      
+      // Push the joining player's Franchise Name and Color
+      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#ff0055', purseRemaining: startMoney, squad: [] });
       socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
   });
@@ -132,7 +141,7 @@ io.on('connection', (socket) => {
               room.highestBidder = null;
               io.to(data.roomCode).emit('newPlayerUp', { player: room.currentPlayer });
               startTimer(data.roomCode, false);
-          }
+      }
       }
   });
 
@@ -142,11 +151,13 @@ io.on('connection', (socket) => {
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
-      let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 20;
-      if ((user.purseRemaining * 100) >= newBid) {
+      // NEW BID MATH: Exactly +0.5 Cr increments
+      let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 0.5;
+      
+      if (user.purseRemaining >= newBid) {
           room.bidHistory.push({ bidder: room.highestBidder, amount: room.currentBid });
           room.currentBid = newBid; room.highestBidder = user;
-          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name });
+          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name, bidderColor: user.color });
           startTimer(roomCode, false);
       }
   });
@@ -166,7 +177,11 @@ io.on('connection', (socket) => {
       if (room && room.hostId === socket.id && room.bidHistory.length > 0 && room.currentPlayer) {
           const prev = room.bidHistory.pop();
           room.currentBid = prev.amount; room.highestBidder = prev.bidder;
-          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: room.highestBidder ? room.highestBidder.name : 'None' });
+          io.to(roomCode).emit('bidUpdated', { 
+              bidAmount: room.currentBid, 
+              bidderName: room.highestBidder ? room.highestBidder.name : 'None',
+              bidderColor: room.highestBidder ? room.highestBidder.color : '#fff'
+          });
           startTimer(roomCode, false);
       }
   });
@@ -183,7 +198,7 @@ io.on('connection', (socket) => {
       const room = activeRooms[data.roomCode];
       if (room) {
           const user = room.users.find(u => u.id === socket.id);
-          io.to(data.roomCode).emit('receiveChatMessage', { sender: user ? user.name : "Unknown", message: data.message });
+          io.to(data.roomCode).emit('receiveChatMessage', { sender: user ? user.name : "Unknown", color: user ? user.color : "#fff", message: data.message });
       }
   });
 });
