@@ -63,7 +63,6 @@ function promptHostForNextPlayer(roomCode) {
     io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
 }
 
-// THIS FIRES WHEN "END EARLY" IS CLICKED OR DECK IS EMPTY
 async function finishAuction(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
@@ -74,9 +73,7 @@ async function finishAuction(roomCode) {
         purseLeft: user.purseRemaining.toFixed(2)
     })); 
     
-    // Sort by largest squad, then most money left
     leaderboard.sort((a, b) => b.squadSize - a.squadSize || b.purseLeft - a.purseLeft);
-    
     io.to(roomCode).emit('auctionEnded', leaderboard);
     
     try {
@@ -88,8 +85,10 @@ async function finishAuction(roomCode) {
 io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+    
+    // THE FIX: Uncapped the player pool! No more .slice(), it loads everyone available.
     let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
-    let shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 100);
+    let shuffled = pool.sort(() => Math.random() - 0.5); 
     
     settings.maxSquad = 15;
     settings.maxOverseas = 4;
@@ -170,7 +169,6 @@ io.on('connection', (socket) => {
       }
   });
 
-  // END EARLY LOGIC TRIGGER
   socket.on('endAuctionEarly', (roomCode) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id) {
