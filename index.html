@@ -19,11 +19,12 @@
                 transparent 30px
             );
             color: var(--text-main); 
-            margin: 0; padding: 75px 10px 20px 10px; 
+            /* BUG FIX: Increased bottom padding from 20px to 120px to save chat from mobile bezels */
+            margin: 0; padding: 75px 10px 120px 10px; 
             overflow-x: hidden; 
         }
 
-        .navbar { position: fixed; top: 0; left: 0; width: 100vw; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
+        .navbar { position: fixed; top: 0; left: 0; width: 100%; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
         .purse-container { width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
         .purse-filler { width: 100%; height: 100%; background: var(--gold); transition: width 0.5s ease; }
 
@@ -61,7 +62,7 @@
         .squad-section { background: #050814; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(0, 212, 255, 0.2); text-align: left; }
         .squad-list { max-height: 80px; overflow-y: auto; font-size: 0.85em; padding: 0; margin: 5px 0; list-style: none; }
 
-        .chat-section { background: #000; border-radius: 8px; padding: 8px; border: 1px solid #333; margin-top: 10px; }
+        .chat-section { background: #000; border-radius: 8px; padding: 10px; border: 1px solid #333; margin-top: 15px; }
         #chat-messages { height: 70px; overflow-y: auto; text-align: left; font-size: 0.85em; margin-bottom: 5px; color: #ccc; }
 
         .bid-btn { height: 60px; font-size: 1.3em; background: linear-gradient(180deg, var(--gold), #8a6d1a); color: #000; border: none; border-radius: 10px; font-weight: 900; width: 100%; cursor: pointer; box-shadow: 0 5px 15px rgba(212,175,55,0.3); }
@@ -236,8 +237,6 @@
         document.getElementById('home-screen').classList.add('hidden'); 
         document.getElementById('settings-screen').classList.remove('hidden');
         document.getElementById('display-room-code').innerText = room;
-        
-        // THE FIX: Send room code to the Navbar immediately
         document.getElementById('nav-code').innerText = room; 
     });
 
@@ -259,8 +258,6 @@
         room = d.code; 
         document.getElementById('home-screen').classList.add('hidden'); 
         document.getElementById('auction-screen').classList.remove('hidden');
-        
-        // THE FIX: Send room code to Navbar for joined players
         document.getElementById('nav-code').innerText = room; 
     });
 
@@ -436,6 +433,7 @@
         });
     });
 
+    // BUG FIX: Added e.keyCode backup to ensure mobile "Enter" keys trigger the chat
     const sendChatMsg = () => {
         const msg = document.getElementById('chat-input').value.trim();
         if(msg !== "" && room !== "") { 
@@ -445,7 +443,12 @@
     };
     
     document.getElementById('send-btn').onclick = sendChatMsg;
-    document.getElementById('chat-input').addEventListener('keypress', function (e) { if (e.key === 'Enter') { sendChatMsg(); } });
+    document.getElementById('chat-input').addEventListener('keypress', function (e) { 
+        if (e.key === 'Enter' || e.keyCode === 13) { 
+            e.preventDefault(); // Stop mobile keyboards from doing weird things
+            sendChatMsg(); 
+        } 
+    });
 
     socket.on('receiveChatMessage', d => { 
         const box = document.getElementById('chat-messages');
