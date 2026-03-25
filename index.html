@@ -76,12 +76,28 @@
             clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
             border-left: 4px solid var(--neon-blue); transition: 0.3s;
         }
+
+        /* NEW JERSEY NUMBER CSS */
+        .jersey-box {
+            width: 85px; height: 85px;
+            display: flex; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid var(--neon-blue);
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.2);
+            transition: 0.3s;
+        }
+        .jersey-box span {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5em; font-weight: 900;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
         
         .player-card.legendary { animation: legendaryPulse 1.5s infinite; border-left: 6px solid var(--gold); }
-        .player-card.legendary .player-avatar { border-color: var(--neon-red); box-shadow: 0 0 15px var(--neon-red); }
+        .player-card.legendary .jersey-box { border-color: var(--neon-red); box-shadow: inset 0 0 20px rgba(255,0,85,0.5), 0 0 15px var(--neon-red); }
+        .player-card.legendary .jersey-box span { color: var(--gold); text-shadow: 0 0 15px var(--neon-red); }
         .player-card.legendary #p-name { color: var(--gold); text-shadow: 0 0 10px var(--neon-red); }
-
-        .player-avatar { width: 85px; height: 85px; object-fit: cover; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); background: #000; padding: 2px; border: 1px solid var(--neon-blue); transition: 0.3s;}
         
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .stat-box { background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: center; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
@@ -166,6 +182,7 @@
 
     <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">FORMAT</div>
     <select id="format-select">
+        <option value="All">ALL PLAYERS (120)</option>
         <option value="T20">T20 MEGA AUCTION</option>
         <option value="ODI">ODI DRAFT</option>
         <option value="Test">TEST CHAMPIONSHIP</option>
@@ -216,7 +233,9 @@
     </div>
 
     <div class="player-card" id="main-player-card">
-        <img id="p-img" class="player-avatar" src="" referrerpolicy="no-referrer">
+        <div id="p-jersey-container" class="jersey-box">
+            <span id="p-jersey">00</span>
+        </div>
         <div style="text-align: left; flex-grow: 1;">
             <h2 id="p-name" style="margin:0; font-size: 1.4em; text-transform: uppercase; color: #fff;"></h2>
             <div id="p-info" style="color:var(--neon-blue); font-size: 0.9em; margin: 2px 0; font-weight: 700;"></div>
@@ -361,6 +380,7 @@
         document.getElementById('p-name').style.color = "#fff";
         document.getElementById('p-info').innerText = "Awaiting Host Selection...";
         document.getElementById('p-base').innerText = "0.0";
+        document.getElementById('p-jersey').innerText = "--";
         document.getElementById('c-bid').innerText = "0.0";
         document.getElementById('c-bidder').innerText = "None";
         document.getElementById('c-bidder').style.color = "#fff";
@@ -399,7 +419,6 @@
         const card = document.getElementById('main-player-card');
         const pName = document.getElementById('p-name');
         
-        // LEGENDARY DROP LOGIC
         if (currentHiddenRating >= 95) {
             card.classList.add('legendary');
             speakAuction(`Warning. Franchise Player Detected. ${d.player.name} is on the block.`);
@@ -413,6 +432,7 @@
         const osIcon = currentIsOverseas ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="var(--neon-blue)" style="vertical-align: middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>` : '';
 
         pName.innerText = d.player.name;
+        document.getElementById('p-jersey').innerText = d.player.jerseyNumber || "00";
         document.getElementById('p-base').innerText = d.player.basePrice.toFixed(1);
         document.getElementById('p-info').innerHTML = `${d.player.role} | ${d.player.country} ${osIcon}`;
         document.getElementById('c-bid').innerText = d.player.basePrice.toFixed(1);
@@ -430,10 +450,6 @@
 
         document.getElementById('bid-btn').classList.remove('disabled');
         document.getElementById('bid-btn').innerText = "TRANSMIT BID";
-        
-        const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=10141f&color=00e5ff&bold=true`;
-        document.getElementById('p-img').src = d.player.image || avatar;
-        document.getElementById('p-img').onerror = function() { this.src = avatar; };
         
         if(isHost) { 
             document.getElementById('host-selection-panel').classList.add('hidden');
@@ -457,7 +473,6 @@
     socket.on('bidUpdated', d => {
         document.getElementById('c-bid').innerText = d.bidAmount.toFixed(1);
         
-        // NEON FRANCHISE COLORS APPLIED HERE
         const bidderText = document.getElementById('c-bidder');
         bidderText.innerText = d.bidderName;
         bidderText.style.color = d.bidderColor;
@@ -465,8 +480,6 @@
         
         playSfx('sfx-bid');
 
-        // Note: valueRatio needs adjustment since hiddenRating is ~90, but bidAmount is now in Crores (e.g. 2.5). 
-        // A player with 90 rating is worth around 8.0 - 12.0 Cr. 
         const valueRatio = (d.bidAmount * 10) / currentHiddenRating; 
         const scoutTag = document.getElementById('scout-tag');
         const scoutMsg = document.getElementById('scout-msg');
@@ -498,7 +511,8 @@
             list.innerHTML = '';
             me.squad.forEach(p => {
                 let flag = p.country !== 'India' ? '<span style="color:var(--neon-blue); font-size: 0.8em;">[INT]</span>' : '';
-                list.innerHTML += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span><span style="color:#555">▶</span> ${p.name} ${flag}</span><span style="color:var(--gold); font-family:'Orbitron'; font-weight:700;">₹${p.basePrice.toFixed(1)}Cr</span></li>`;
+                // NEW: Now includes the #Number in the squad list
+                list.innerHTML += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span><span style="color:#555">#${p.jerseyNumber}</span> ${p.name} ${flag}</span><span style="color:var(--gold); font-family:'Orbitron'; font-weight:700;">₹${p.basePrice.toFixed(1)}Cr</span></li>`;
             });
         }
 
