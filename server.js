@@ -65,7 +65,7 @@ function nextPlayer(roomCode) {
 
 async function finishAuction(roomCode) {
     const room = activeRooms[roomCode];
-    let leaderboard = room.users.map(user => ({ name: user.name, score: 85, squadSize: user.squad.length })); // Simplified rating
+    let leaderboard = room.users.map(user => ({ name: user.name, score: 85, squadSize: user.squad.length })); 
     leaderboard.sort((a, b) => b.score - a.score);
     io.to(roomCode).emit('auctionEnded', leaderboard);
     try {
@@ -77,16 +77,10 @@ async function finishAuction(roomCode) {
 io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-    
-    // FORMAT FILTER LOGIC: Filter by tag, shuffle, then take 80
     let pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
     let shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 80);
     
-    activeRooms[roomCode] = { 
-        hostId: socket.id, users: [], availablePlayers: shuffled, 
-        auctionStarted: false, isSelling: false, bidHistory: [], settings: settings 
-    };
-    
+    activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, bidHistory: [], settings: settings };
     socket.join(roomCode);
     activeRooms[roomCode].users.push({ id: socket.id, name: 'Host', purseRemaining: settings.startingPurse, squad: [] });
     socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse, format: settings.format, poolSize: shuffled.length });
@@ -141,6 +135,15 @@ io.on('connection', (socket) => {
           room.currentBid = prev.amount; room.highestBidder = prev.bidder;
           io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: room.highestBidder ? room.highestBidder.name : 'None' });
           startTimer(roomCode, false);
+      }
+  });
+
+  // CHAT SERVER LOGIC
+  socket.on('sendChatMessage', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room) {
+          const user = room.users.find(u => u.id === socket.id);
+          io.to(data.roomCode).emit('receiveChatMessage', { sender: user ? user.name : "Unknown", message: data.message });
       }
   });
 });
