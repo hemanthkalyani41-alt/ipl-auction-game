@@ -8,7 +8,6 @@
     <style>
         :root { --gold: #D4AF37; --neon-red: #ff073a; --neon-blue: #00d4ff; --text-main: #f8fafc; --safe-green: #10b981; }
         
-        /* NEON BLUE GRID BACKGROUND */
         body { 
             font-family: 'Montserrat', sans-serif; 
             background-color: #050814; 
@@ -21,7 +20,6 @@
             overflow-x: hidden; 
         }
 
-        /* FIXED NAVBAR */
         .navbar { position: fixed; top: 0; left: 0; width: 100vw; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
         .purse-container { width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
         .purse-filler { width: 100%; height: 100%; background: var(--gold); transition: width 0.5s ease; }
@@ -34,6 +32,9 @@
 
         .scout-box { background: rgba(0, 212, 255, 0.1); border: 1px dashed var(--neon-blue); padding: 8px; border-radius: 8px; margin-bottom: 10px; font-size: 0.8em; display: flex; align-items: center; gap: 10px; }
         .scout-tag { font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-size: 0.75em; }
+
+        /* NEW: Host Selection Panel */
+        .host-selection-panel { background: #1a1005; padding: 15px; border-radius: 8px; border: 1px dashed var(--gold); margin-bottom: 10px; }
 
         .player-card { background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; }
         .player-avatar { width: 80px; height: 80px; border-radius: 10px; border: 2px solid var(--gold); object-fit: cover; }
@@ -49,6 +50,7 @@
 
         .bid-btn { height: 60px; font-size: 1.3em; background: linear-gradient(180deg, var(--gold), #8a6d1a); color: #000; border: none; border-radius: 10px; font-weight: 900; width: 100%; cursor: pointer; box-shadow: 0 5px 15px rgba(212,175,55,0.3); }
         .bid-btn:active { transform: scale(0.96); }
+        .bid-btn.disabled { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
 
         .host-panel { background: #1a0a0a; padding: 10px; border-radius: 8px; display: flex; gap: 5px; margin-bottom: 10px; justify-content: center; border: 1px solid var(--neon-red); flex-wrap: wrap; }
         .host-panel button { width: auto; font-size: 0.7em; padding: 8px 10px; margin: 0; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-weight: bold;}
@@ -84,9 +86,7 @@
     <small>Starting Purse (Cr)</small>
     <input type="number" id="purse-input" value="100">
     <button onclick="createGame()" style="width:100%; background:var(--neon-blue); padding:15px; border-radius:8px; font-weight:800; color:#000; border:none; box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);">CREATE LOBBY</button>
-    
     <div style="text-align: center; margin: 15px 0; color: #555;">OR</div>
-    
     <div style="display:flex; gap:10px;">
         <input type="text" id="join-input" placeholder="ROOM CODE" style="margin:0;">
         <button onclick="joinGame()" style="width:90px; background:#fff; color:#000; margin:0; border:none; border-radius:5px; font-weight:bold;">JOIN</button>
@@ -96,14 +96,11 @@
 <div class="container hidden" id="settings-screen">
     <h1 style="font-size: 1.5em; text-align:center; color: var(--gold);">ROOM SETTINGS</h1>
     <div style="text-align:center; font-size:1.2em; margin-bottom: 20px;">Room Code: <b style="color:var(--neon-blue);" id="display-room-code"></b></div>
-    
     <small>Max Players Per Squad</small>
     <input type="number" id="max-squad" value="15">
-    
     <small>Max Overseas (✈️) Players</small>
     <input type="number" id="max-os" value="4">
-    
-    <button onclick="saveAndStart()" style="width:100%; background:var(--neon-red); padding:15px; border-radius:8px; font-weight:800; color:#fff; border:none; margin-top:10px;">SAVE RULES & START AUCTION</button>
+    <button onclick="saveAndStart()" style="width:100%; background:var(--neon-red); padding:15px; border-radius:8px; font-weight:800; color:#fff; border:none; margin-top:10px;">SAVE RULES & ENTER ROOM</button>
 </div>
 
 <div class="container hidden" id="auction-screen">
@@ -113,6 +110,12 @@
         <button id="resume-btn" class="hidden">▶ Resume</button>
         <button id="undo-btn">⏪ Undo</button>
         <button id="end-early-btn" style="background:#ff073a; color:white; border-color:#ff073a;">🛑 End Early</button>
+    </div>
+
+    <div id="host-selection-panel" class="host-selection-panel hidden">
+        <div style="color: var(--gold); font-weight: 800; margin-bottom: 5px;">👑 AUCTIONEER DECK</div>
+        <select id="next-player-dropdown" style="margin-bottom: 10px;"></select>
+        <button id="send-to-block-btn" style="width: 100%; padding: 10px; background: var(--safe-green); color: #fff; border: none; border-radius: 5px; font-weight: bold;">SEND TO BLOCK ▶</button>
     </div>
 
     <div class="scout-box">
@@ -136,7 +139,7 @@
             <small id="c-bidder" style="color: #fff;">None</small>
         </div>
         <div class="stat-box" style="display:flex; align-items:center; justify-content:center;">
-            <div id="timer" style="font-size: 2.8em; font-weight: 900; color: var(--neon-red);">15</div>
+            <div id="timer" style="font-size: 2.8em; font-weight: 900; color: var(--neon-red);">--</div>
         </div>
     </div>
 
@@ -150,7 +153,7 @@
         </ul>
     </div>
 
-    <button id="bid-btn" class="bid-btn">PLACE BID</button>
+    <button id="bid-btn" class="bid-btn disabled">WAITING FOR PLAYER</button>
 
     <div class="chat-section">
         <div id="chat-messages"></div>
@@ -171,12 +174,10 @@
     let myRules = { maxSquad: 15, maxOverseas: 4 };
     let mySquadData = [];
 
-    // TTS Engine
     function speakAuction(text) {
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.1; 
-            utterance.pitch = 1.0;
+            utterance.rate = 1.1; utterance.pitch = 1.0;
             window.speechSynthesis.speak(utterance);
         }
     }
@@ -193,8 +194,7 @@
     document.body.addEventListener('touchstart', unlockAudio);
 
     function playSfx(id) { 
-        const a = document.getElementById(id); a.currentTime = 0; 
-        a.play().catch(() => {});
+        const a = document.getElementById(id); a.currentTime = 0; a.play().catch(() => {});
     }
 
     function toggleSpy() { document.getElementById('spy-menu').classList.toggle('active'); }
@@ -206,7 +206,6 @@
 
     function joinGame() { socket.emit('joinRoom', document.getElementById('join-input').value.toUpperCase()); }
 
-    // FLOW: Host creates room -> Sees Settings
     socket.on('roomCreated', d => { 
         room = d.code; isHost = true;
         document.getElementById('home-screen').classList.add('hidden'); 
@@ -214,7 +213,6 @@
         document.getElementById('display-room-code').innerText = room;
     });
 
-    // FLOW: Host saves settings & starts auction
     function saveAndStart() {
         document.getElementById('settings-screen').classList.add('hidden');
         document.getElementById('auction-screen').classList.remove('hidden');
@@ -229,12 +227,10 @@
         socket.emit('updateRulesAndStart', { roomCode: room, maxSquad: myRules.maxSquad, maxOverseas: myRules.maxOverseas });
     }
 
-    // FLOW: Player joins -> Goes straight to auction (waiting for host to start)
     socket.on('roomJoined', d => { 
         room = d.code; 
         document.getElementById('home-screen').classList.add('hidden'); 
         document.getElementById('auction-screen').classList.remove('hidden');
-        document.getElementById('scout-msg').innerText = "Waiting for Host to configure settings and start...";
     });
 
     socket.on('rulesUpdated', rules => {
@@ -243,10 +239,44 @@
         document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
     });
 
+    // NEW: The Waiting Room State
+    socket.on('waitingForNextPlayer', list => {
+        document.getElementById('p-name').innerText = "WAITING FOR HOST";
+        document.getElementById('p-info').innerText = "The Auctioneer is choosing the next player...";
+        document.getElementById('p-base').innerText = "0";
+        document.getElementById('c-bid').innerText = "0";
+        document.getElementById('c-bidder').innerText = "None";
+        document.getElementById('timer').innerText = "--";
+        
+        document.getElementById('scout-tag').innerText = "STANDBY";
+        document.getElementById('scout-msg').innerText = "Analyzing the deck...";
+
+        document.getElementById('bid-btn').classList.add('disabled');
+        document.getElementById('bid-btn').innerText = "WAITING...";
+
+        // If you are the Host, show the dropdown menu!
+        if (isHost) {
+            const dropdown = document.getElementById('next-player-dropdown');
+            dropdown.innerHTML = '';
+            list.forEach(p => {
+                dropdown.innerHTML += `<option value="${p.name}">${p.name} (${p.role} | ₹${p.basePrice}L)</option>`;
+            });
+            document.getElementById('host-selection-panel').classList.remove('hidden');
+            document.getElementById('pause-btn').classList.add('hidden');
+            document.getElementById('undo-btn').classList.add('hidden');
+        }
+    });
+
+    // NEW: Host sends player to the block
+    document.getElementById('send-to-block-btn').onclick = () => {
+        const selectedPlayer = document.getElementById('next-player-dropdown').value;
+        socket.emit('bringPlayerUp', { roomCode: room, playerName: selectedPlayer });
+    };
+
     let currentIsOverseas = false;
     socket.on('newPlayerUp', d => {
         currentHiddenRating = d.player.hiddenRating;
-        currentIsOverseas = d.player.country !== 'India'; // Basic check based on country
+        currentIsOverseas = d.player.country !== 'India'; 
         
         document.getElementById('p-name').innerText = d.player.name;
         document.getElementById('p-base').innerText = d.player.basePrice;
@@ -258,16 +288,25 @@
         document.getElementById('scout-tag').innerText = "WATCHING";
         document.getElementById('scout-tag').style.background = "var(--neon-blue)";
         document.getElementById('scout-msg').innerText = "Awaiting bids...";
+
+        document.getElementById('bid-btn').classList.remove('disabled');
+        document.getElementById('bid-btn').innerText = "PLACE BID";
         
         const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.player.name)}&background=D4AF37&color=000&bold=true`;
         document.getElementById('p-img').src = d.player.image || avatar;
         document.getElementById('p-img').onerror = function() { this.src = avatar; };
         
-        if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
+        if(isHost) { 
+            document.getElementById('host-selection-panel').classList.add('hidden');
+            document.getElementById('resume-btn').classList.add('hidden'); 
+            document.getElementById('pause-btn').classList.remove('hidden'); 
+            document.getElementById('undo-btn').classList.remove('hidden');
+        }
     });
 
     document.getElementById('bid-btn').onclick = () => { 
-        // Client-side Rule Validation Check
+        if (document.getElementById('bid-btn').classList.contains('disabled')) return;
+        
         const currentOsCount = mySquadData.filter(p => p.country !== 'India').length;
         if(mySquadData.length >= myRules.maxSquad) { alert("Maximum squad size reached!"); return; }
         if(currentIsOverseas && currentOsCount >= myRules.maxOverseas) { alert("Maximum overseas limit reached!"); return; }
@@ -300,7 +339,7 @@
         
         const me = d.users.find(u => u.id === socket.id);
         if(me) {
-            mySquadData = me.squad; // Update local tracker
+            mySquadData = me.squad; 
             const perc = (me.purseRemaining / initialPurse) * 100;
             document.getElementById('purse-bar').style.width = perc + "%";
             document.getElementById('nav-purse').innerText = me.purseRemaining.toFixed(2);
@@ -333,7 +372,6 @@
         speakAuction("Unsold. Moving to the next player."); 
     });
 
-    // Host Superpowers
     document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
     document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
     document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
