@@ -8,41 +8,60 @@
     <style>
         :root { --gold: #D4AF37; --neon-red: #ff073a; --neon-blue: #00d4ff; --text-main: #f8fafc; --safe-green: #10b981; }
         
+        /* 1. SLANTED PARALLEL LINES BACKGROUND */
         body { 
             font-family: 'Montserrat', sans-serif; 
             background-color: #050814; 
-            background-image: 
-                linear-gradient(rgba(0, 212, 255, 0.07) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 212, 255, 0.07) 1px, transparent 1px);
-            background-size: 30px 30px;
+            background-image: repeating-linear-gradient(
+                -45deg,
+                rgba(0, 212, 255, 0.05),
+                rgba(0, 212, 255, 0.05) 2px,
+                transparent 2px,
+                transparent 30px
+            );
             color: var(--text-main); 
             margin: 0; padding: 75px 10px 20px 10px; 
             overflow-x: hidden; 
         }
 
-        .navbar { position: fixed; top: 0; left: 0; width: 100vw; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
+        .navbar { position: fixed; top: 0; left: 0; width: 100%; height: 65px; background: #000; border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 2000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
         .purse-container { width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
         .purse-filler { width: 100%; height: 100%; background: var(--gold); transition: width 0.5s ease; }
 
-        .spy-menu { position: fixed; top: 0; right: -280px; width: 260px; height: 100%; background: #080d1a; z-index: 3000; transition: 0.3s; padding: 20px; border-left: 2px solid var(--neon-blue); box-shadow: -10px 0 30px rgba(0,0,0,0.8); overflow-y: auto; }
-        .spy-menu.active { right: 0; }
+        /* 2. SPY MENU YELLOW LINE FIX */
+        .spy-menu { 
+            position: fixed; top: 0; right: 0; width: 260px; height: 100%; 
+            background: #080d1a; z-index: 3000; padding: 20px; 
+            border-left: 2px solid var(--neon-blue); box-shadow: -10px 0 30px rgba(0,0,0,0.8); 
+            overflow-y: auto; box-sizing: border-box;
+            transform: translateX(100%); /* Hides completely off-screen, no peeking borders */
+            transition: transform 0.3s ease-in-out; 
+        }
+        .spy-menu.active { transform: translateX(0); } /* Slides in */
         .spy-close { font-size: 2em; color: var(--neon-blue); cursor: pointer; float: right; }
 
-        .container { width: 100%; max-width: 500px; margin: 0 auto 15px auto; background: #111; padding: 20px; border-radius: 12px; border-top: 3px solid var(--gold); box-sizing: border-box; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        /* 3. HIGHLIGHTED GLOWING LAYOUT */
+        .container { 
+            width: 100%; max-width: 500px; margin: 0 auto 15px auto; 
+            background: rgba(10, 15, 26, 0.95); padding: 20px; border-radius: 12px; 
+            border: 1px solid rgba(0, 212, 255, 0.3); border-top: 3px solid var(--neon-blue); 
+            box-sizing: border-box; position: relative; 
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.1), inset 0 0 10px rgba(0, 212, 255, 0.05); 
+            backdrop-filter: blur(5px);
+        }
 
         .scout-box { background: rgba(0, 212, 255, 0.1); border: 1px dashed var(--neon-blue); padding: 8px; border-radius: 8px; margin-bottom: 10px; font-size: 0.8em; display: flex; align-items: center; gap: 10px; }
         .scout-tag { font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-size: 0.75em; }
 
-        /* NEW: Host Selection Panel */
-        .host-selection-panel { background: #1a1005; padding: 15px; border-radius: 8px; border: 1px dashed var(--gold); margin-bottom: 10px; }
+        .host-selection-panel { background: #1a1005; padding: 15px; border-radius: 8px; border: 1px dashed var(--gold); margin-bottom: 10px; box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.1); }
 
-        .player-card { background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; }
+        .player-card { background: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
         .player-avatar { width: 80px; height: 80px; border-radius: 10px; border: 2px solid var(--gold); object-fit: cover; }
         
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-box { background: #0a0f1a; padding: 10px; border-radius: 8px; border: 1px solid #222; text-align: center; }
+        .stat-box { background: #050814; padding: 10px; border-radius: 8px; border: 1px solid rgba(0, 212, 255, 0.2); text-align: center; box-shadow: 0 0 10px rgba(0, 212, 255, 0.05); }
 
-        .squad-section { background: #0a0f1a; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; text-align: left; }
+        .squad-section { background: #050814; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(0, 212, 255, 0.2); text-align: left; }
         .squad-list { max-height: 80px; overflow-y: auto; font-size: 0.85em; padding: 0; margin: 5px 0; list-style: none; }
 
         .chat-section { background: #000; border-radius: 8px; padding: 8px; border: 1px solid #333; margin-top: 10px; }
@@ -52,7 +71,7 @@
         .bid-btn:active { transform: scale(0.96); }
         .bid-btn.disabled { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
 
-        .host-panel { background: #1a0a0a; padding: 10px; border-radius: 8px; display: flex; gap: 5px; margin-bottom: 10px; justify-content: center; border: 1px solid var(--neon-red); flex-wrap: wrap; }
+        .host-panel { background: rgba(255, 7, 58, 0.05); padding: 10px; border-radius: 8px; display: flex; gap: 5px; margin-bottom: 10px; justify-content: center; border: 1px solid var(--neon-red); flex-wrap: wrap; }
         .host-panel button { width: auto; font-size: 0.7em; padding: 8px 10px; margin: 0; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-weight: bold;}
         .host-panel button:active { background: #444; }
 
@@ -85,7 +104,7 @@
     </select>
     <small>Starting Purse (Cr)</small>
     <input type="number" id="purse-input" value="100">
-    <button onclick="createGame()" style="width:100%; background:var(--neon-blue); padding:15px; border-radius:8px; font-weight:800; color:#000; border:none; box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);">CREATE LOBBY</button>
+    <button onclick="createGame()" style="width:100%; background:var(--neon-blue); padding:15px; border-radius:8px; font-weight:800; color:#000; border:none; box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);">CREATE LOBBY</button>
     <div style="text-align: center; margin: 15px 0; color: #555;">OR</div>
     <div style="display:flex; gap:10px;">
         <input type="text" id="join-input" placeholder="ROOM CODE" style="margin:0;">
@@ -100,7 +119,7 @@
     <input type="number" id="max-squad" value="15">
     <small>Max Overseas (✈️) Players</small>
     <input type="number" id="max-os" value="4">
-    <button onclick="saveAndStart()" style="width:100%; background:var(--neon-red); padding:15px; border-radius:8px; font-weight:800; color:#fff; border:none; margin-top:10px;">SAVE RULES & ENTER ROOM</button>
+    <button onclick="saveAndStart()" style="width:100%; background:var(--neon-red); padding:15px; border-radius:8px; font-weight:800; color:#fff; border:none; margin-top:10px; box-shadow: 0 0 15px rgba(255, 7, 58, 0.4);">SAVE RULES & ENTER ROOM</button>
 </div>
 
 <div class="container hidden" id="auction-screen">
@@ -109,7 +128,7 @@
         <button id="pause-btn">⏸ Pause</button>
         <button id="resume-btn" class="hidden">▶ Resume</button>
         <button id="undo-btn">⏪ Undo</button>
-        <button id="end-early-btn" style="background:#ff073a; color:white; border-color:#ff073a;">🛑 End Early</button>
+        <button id="end-early-btn" style="background:var(--neon-red); color:white; border-color:var(--neon-red);">🛑 End Early</button>
     </div>
 
     <div id="host-selection-panel" class="host-selection-panel hidden">
@@ -162,6 +181,13 @@
             <button id="send-btn" style="width:70px; margin:0; padding:0; height:35px; background:var(--neon-blue); color:#000; border:none; font-weight:bold; border-radius:5px;">Send</button>
         </div>
     </div>
+</div>
+
+<div class="container hidden" id="results-screen">
+    <h1 style="color: var(--gold); text-align: center;">🏆 FINAL RANKINGS</h1>
+    <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">The auction has officially concluded.</p>
+    <div id="leaderboard-container"></div>
+    <button onclick="location.reload()" style="width:100%; margin-top:20px; background:var(--neon-blue); color:#000; padding: 15px; border:none; border-radius:8px; font-weight:800;">PLAY AGAIN</button>
 </div>
 
 <audio id="sfx-bid" src="https://actions.google.com/sounds/v1/ui/pop_up_on.ogg" preload="auto"></audio>
@@ -239,7 +265,6 @@
         document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
     });
 
-    // NEW: The Waiting Room State
     socket.on('waitingForNextPlayer', list => {
         document.getElementById('p-name').innerText = "WAITING FOR HOST";
         document.getElementById('p-info').innerText = "The Auctioneer is choosing the next player...";
@@ -249,12 +274,12 @@
         document.getElementById('timer').innerText = "--";
         
         document.getElementById('scout-tag').innerText = "STANDBY";
+        document.getElementById('scout-tag').style.background = "var(--neon-blue)";
         document.getElementById('scout-msg').innerText = "Analyzing the deck...";
 
         document.getElementById('bid-btn').classList.add('disabled');
         document.getElementById('bid-btn').innerText = "WAITING...";
 
-        // If you are the Host, show the dropdown menu!
         if (isHost) {
             const dropdown = document.getElementById('next-player-dropdown');
             dropdown.innerHTML = '';
@@ -267,7 +292,6 @@
         }
     });
 
-    // NEW: Host sends player to the block
     document.getElementById('send-to-block-btn').onclick = () => {
         const selectedPlayer = document.getElementById('next-player-dropdown').value;
         socket.emit('bringPlayerUp', { roomCode: room, playerName: selectedPlayer });
@@ -372,6 +396,7 @@
         speakAuction("Unsold. Moving to the next player."); 
     });
 
+    // END EARLY FUNCTION WIRED CORRECTLY
     document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
     document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
     document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
@@ -384,6 +409,28 @@
 
     socket.on('auctionResumed', () => {
         if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
+    });
+
+    // LEADERBOARD RENDER LOGIC
+    socket.on('auctionEnded', leaderboardData => {
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        document.getElementById('results-screen').classList.remove('hidden');
+        
+        const board = document.getElementById('leaderboard-container');
+        board.innerHTML = ''; 
+        leaderboardData.forEach((team, index) => {
+            let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🎗️';
+            board.innerHTML += `
+            <div style="background: #0a0f1a; border: 1px solid var(--neon-blue); border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 0 10px rgba(0,212,255,0.1);">
+                <div style="text-align: left;">
+                    <h2 style="margin: 0; color: var(--text-main); font-size: 1.2em;">${medal} ${team.name}</h2>
+                    <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.85em;">Players Bought: ${team.squadSize}</p>
+                </div>
+                <div style="background: rgba(212, 175, 55, 0.1); color: var(--gold); padding: 10px; border-radius: 5px; font-weight: 800; border: 1px solid var(--gold);">
+                    ₹${team.purseLeft}Cr Left
+                </div>
+            </div>`;
+        });
     });
 
     const sendChatMsg = () => {
