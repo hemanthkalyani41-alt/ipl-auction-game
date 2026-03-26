@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IPL Pro: Esports Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
     <style>
         :root { 
             --gold: #ffcc00; 
@@ -70,9 +72,9 @@
 
         .player-card { 
             background: linear-gradient(135deg, rgba(20,25,35,1) 0%, rgba(10,12,18,1) 100%);
-            padding: 15px; border: 1px solid #333; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; 
+            padding: 15px; border: 1px solid #333; margin-bottom: 0px; display: flex; align-items: center; gap: 15px; 
             box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
-            clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+            clip-path: polygon(15px 0, 100% 0, 100% 100%, 0 100%, 0 15px);
             border-left: 4px solid var(--neon-blue); transition: 0.3s;
         }
 
@@ -85,26 +87,32 @@
             box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.2);
             transition: 0.3s;
         }
-        .jersey-box span {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5em; font-weight: 900;
-            color: var(--neon-blue);
-            text-shadow: 0 0 10px var(--neon-blue);
-        }
+        .jersey-box span { font-family: 'Orbitron', sans-serif; font-size: 2.5em; font-weight: 900; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
         
         .player-card.legendary { animation: legendaryPulse 1.5s infinite; border-left: 6px solid var(--gold); }
         .player-card.legendary .jersey-box { border-color: var(--neon-red); box-shadow: inset 0 0 20px rgba(255,0,85,0.5), 0 0 15px var(--neon-red); }
         .player-card.legendary .jersey-box span { color: var(--gold); text-shadow: 0 0 15px var(--neon-red); }
         .player-card.legendary #p-name { color: var(--gold); text-shadow: 0 0 10px var(--neon-red); }
         
+        /* NEW: TV BROADCAST TICKER */
+        .ticker-wrap { width: 100%; overflow: hidden; background: #050810; border: 1px solid #333; border-top: none; margin-bottom: 15px; padding: 4px 0; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
+        .ticker-move { display: inline-block; white-space: nowrap; font-family: 'Orbitron'; font-size: 0.75em; color: var(--gold); letter-spacing: 1px; animation: ticker 8s linear infinite; }
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .stat-box { background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: center; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
 
         .squad-section { background: rgba(0,0,0,0.5); padding: 12px; margin-bottom: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: left; }
         .squad-list { max-height: 90px; overflow-y: auto; font-size: 0.9em; padding: 0; margin: 8px 0 0 0; list-style: none; color: #b0bec5;}
 
+        /* NEW: AI SQUAD NEEDS CHECKLIST */
+        .needs-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; }
+        .need-badge { font-family: 'Orbitron'; font-size: 0.65em; padding: 3px 6px; border: 1px solid #444; color: #777; border-radius: 3px; background: #000; }
+        .need-badge.filled { border-color: var(--safe-green); color: var(--safe-green); background: rgba(0,255,136,0.1); }
+        .need-badge.alert { border-color: var(--neon-red); color: var(--neon-red); background: rgba(255,0,85,0.1); }
+
         .chat-section { background: #030407; padding: 10px; border: 1px solid #222; margin-top: 15px; border-left: 2px solid var(--neon-blue); }
-        #chat-messages { height: 80px; overflow-y: auto; text-align: left; font-size: 0.9em; margin-bottom: 8px; color: #ccc; }
+        #chat-messages { height: 90px; overflow-y: auto; text-align: left; font-size: 0.9em; margin-bottom: 8px; color: #ccc; display: flex; flex-direction: column; }
 
         .bid-btn { 
             height: 65px; font-size: 1.5em; 
@@ -130,7 +138,6 @@
         }
         input:focus, select:focus { border-color: var(--neon-blue); box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); background: rgba(0, 229, 255, 0.05); }
         
-        /* DROPDOWN STYLING */
         optgroup { background: #111; color: var(--gold); font-family: 'Orbitron'; font-weight: 900; }
         option { background: #000; color: #fff; font-family: 'Rajdhani'; font-weight: normal; }
 
@@ -244,6 +251,8 @@
             <div style="color: var(--gold); font-weight: 900; font-family: 'Orbitron'; margin-top: 5px;">BASE: ₹<span id="p-base"></span>Cr</div>
         </div>
     </div>
+    
+    <div class="ticker-wrap"><div class="ticker-move" id="p-ticker">SYSTEM STANDBY...</div></div>
 
     <div class="dashboard-grid">
         <div class="stat-box" style="text-align:left;">
@@ -264,6 +273,15 @@
                 <span id="os-count" style="color:#fff">0</span>/<span id="rule-max-os">4</span>
             </span>
         </div>
+        
+        <div class="needs-grid" id="ai-needs">
+            <span class="need-badge alert" id="need-bat">BAT (0/4)</span>
+            <span class="need-badge alert" id="need-bowl">BOWL (0/4)</span>
+            <span class="need-badge alert" id="need-ar">AR (0/2)</span>
+            <span class="need-badge alert" id="need-wk">WK (0/1)</span>
+            <span class="need-badge alert" id="need-cap">CAP (0/1)</span>
+        </div>
+
         <ul class="squad-list" id="my-squad-list">
             <li style="color:#555; font-style: italic;">Awaiting acquisitions...</li>
         </ul>
@@ -272,11 +290,11 @@
     <button id="bid-btn" class="bid-btn disabled">SYSTEM STANDBY</button>
 
     <div class="chat-section">
-        <div id="chat-messages"></div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; margin-bottom: 10px;">
             <input type="text" id="chat-input" placeholder="Comms link..." style="margin:0; height:40px; background: rgba(0,0,0,0.8); border: 1px solid #333; border-radius: 0;">
             <button id="send-btn" style="width:80px; margin:0; background:var(--neon-blue); color:#000; border:none; font-family:'Orbitron'; font-weight:900; cursor:pointer;">SEND</button>
         </div>
+        <div id="chat-messages"></div>
     </div>
 </div>
 
@@ -296,6 +314,10 @@
     let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
     let myRules = { maxSquad: 15, maxOverseas: 4 };
     let mySquadData = [];
+
+    // --- NEW: CAPTAIN INTERCEPTOR ---
+    // Automatically flags these famous leaders as "Captain" without changing your JSON file!
+    const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
 
     function speakAuction(text) {
         if ('speechSynthesis' in window) {
@@ -375,7 +397,6 @@
         document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
     });
 
-    // CATEGORIZED PLAYER DROPDOWN FIX
     socket.on('waitingForNextPlayer', list => {
         document.getElementById('main-player-card').classList.remove('legendary');
         
@@ -389,6 +410,7 @@
         document.getElementById('c-bidder').style.color = "#fff";
         document.getElementById('c-bidder').style.textShadow = "none";
         document.getElementById('timer').innerText = "--";
+        document.getElementById('p-ticker').innerText = "SYSTEM STANDBY...";
         
         document.getElementById('scout-tag').innerText = "IDLE";
         document.getElementById('scout-tag').style.background = "#555";
@@ -401,8 +423,10 @@
             const dropdown = document.getElementById('next-player-dropdown');
             dropdown.innerHTML = '';
             
-            // THE FIX: Organize by Role
-            const roles = ['Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'];
+            // PRE-PROCESS CAPTAINS INTERCEPT
+            list.forEach(p => { if(captainList.includes(p.name)) p.role = "Captain"; });
+            
+            const roles = ['Captain', 'Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'];
             roles.forEach(role => {
                 const playersInRole = list.filter(p => p.role === role);
                 if (playersInRole.length > 0) {
@@ -422,7 +446,6 @@
             document.getElementById('pause-btn').classList.add('hidden');
             document.getElementById('undo-btn').classList.add('hidden');
 
-            // Reset double-click prevention
             const blockBtn = document.getElementById('send-to-block-btn');
             blockBtn.disabled = false;
             blockBtn.innerText = "SEND TO BLOCK";
@@ -433,7 +456,7 @@
         const selectedPlayer = document.getElementById('next-player-dropdown').value;
         if(selectedPlayer) {
             socket.emit('bringPlayerUp', { roomCode: room, playerName: selectedPlayer });
-            this.disabled = true; // Prevent double-clicking to avoid server race conditions
+            this.disabled = true; 
             this.innerText = "TRANSMITTING...";
         }
     };
@@ -443,6 +466,8 @@
         currentHiddenRating = d.player.hiddenRating;
         currentIsOverseas = d.player.country !== 'India'; 
         
+        if(captainList.includes(d.player.name)) d.player.role = "Captain"; // Intercept role
+
         const card = document.getElementById('main-player-card');
         const pName = document.getElementById('p-name');
         
@@ -464,6 +489,16 @@
         document.getElementById('p-info').innerHTML = `${d.player.role} | ${d.player.country} ${osIcon}`;
         document.getElementById('c-bid').innerText = d.player.basePrice.toFixed(1);
         
+        // --- NEW: DYNAMIC BROADCAST TICKER STATS ---
+        let tvStats = "";
+        let rate = currentHiddenRating;
+        if(d.player.role === 'Batsman') tvStats = `🔥 ${Math.floor(rate * 45)} IPL Runs | ⚡ Strike Rate: ${Math.floor(rate * 1.5)} | 💥 High Score: ${Math.floor(rate * 1.3)}`;
+        else if(d.player.role === 'Bowler') tvStats = `🎯 ${Math.floor(rate * 1.8)} Wickets | 📉 Economy: ${(rate > 90 ? 6.5 : 7.8)} | 🏏 Best: ${Math.floor(rate / 20)}/${Math.floor(rate / 3)}`;
+        else if(d.player.role === 'All-Rounder') tvStats = `🔥 ${Math.floor(rate * 30)} Runs | 🎯 ${Math.floor(rate * 1.2)} Wickets | 🏆 Match Winner`;
+        else if(d.player.role === 'Captain') tvStats = `👑 Elite Leadership | 🏆 Multi-Format Winner | 🧠 Tactical Genius`;
+        else tvStats = `🧤 ${Math.floor(rate * 1.1)} Dismissals | 🔥 ${Math.floor(rate * 35)} Runs | ⚡ Reflexes: Elite`;
+        document.getElementById('p-ticker').innerText = `▶ BROADCAST FEED: ${d.player.name} — ${tvStats} ◀`;
+
         const cBidder = document.getElementById('c-bidder');
         cBidder.innerText = "None";
         cBidder.style.color = "#fff";
@@ -525,6 +560,12 @@
         speakAuction(`Sold to ${d.winnerName} for ${d.amount.toFixed(1)} Crores.`); 
         
         const me = d.users.find(u => u.id === socket.id);
+        
+        // --- NEW: VICTORY SPARKS VFX ---
+        if(me && me.name === d.winnerName) {
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: [d.winnerColor, '#ffffff'] });
+        }
+
         if(me) {
             mySquadData = me.squad; 
             const perc = (me.purseRemaining / initialPurse) * 100;
@@ -534,11 +575,26 @@
             document.getElementById('squad-count').innerText = me.squad.length;
             document.getElementById('os-count').innerText = me.squad.filter(p => p.country !== 'India').length;
             
+            // --- NEW: AI SQUAD NEEDS LOGIC ---
+            let bats=0, bowls=0, ars=0, wks=0, caps=0;
+            me.squad.forEach(p => {
+                if(p.role === 'Batsman') bats++; else if(p.role === 'Bowler') bowls++;
+                else if(p.role === 'All-Rounder') ars++; else if(p.role === 'Wicketkeeper') wks++;
+                else if(p.role === 'Captain' || captainList.includes(p.name)) caps++;
+            });
+            
+            const updateBadge = (id, count, req) => {
+                const el = document.getElementById(id);
+                el.innerText = `${id.replace('need-','').toUpperCase()} (${count}/${req})`;
+                if(count >= req) { el.classList.remove('alert'); el.classList.add('filled'); }
+            };
+            updateBadge('need-bat', bats, 4); updateBadge('need-bowl', bowls, 4);
+            updateBadge('need-ar', ars, 2); updateBadge('need-wk', wks, 1); updateBadge('need-cap', caps, 1);
+
             const list = document.getElementById('my-squad-list');
             list.innerHTML = '';
             me.squad.forEach(p => {
                 let flag = p.country !== 'India' ? '<span style="color:var(--neon-blue); font-size: 0.8em;">[INT]</span>' : '';
-                // THE FIX: Properly pull soldPrice to display here
                 let finalPrice = (p.soldPrice !== undefined) ? p.soldPrice : p.basePrice;
                 list.innerHTML += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span><span style="color:#555">#${p.jerseyNumber}</span> ${p.name} ${flag}</span><span style="color:var(--gold); font-family:'Orbitron'; font-weight:700;">₹${finalPrice.toFixed(1)}Cr</span></li>`;
             });
@@ -614,8 +670,8 @@
 
     socket.on('receiveChatMessage', d => { 
         const box = document.getElementById('chat-messages');
-        box.innerHTML += `<div style="margin-bottom: 6px;"><b style="color:${d.color}; font-family:'Orbitron'; font-size:0.9em; text-shadow: 0 0 5px ${d.color};">[${d.sender}]</b> <span style="color:#fff">${d.message}</span></div>`;
-        box.scrollTop = box.scrollHeight;
+        // THE FIX: insertAdjacentHTML('afterbegin') pushes new messages to the TOP of the chat box. No scrolling needed!
+        box.insertAdjacentHTML('afterbegin', `<div style="margin-bottom: 6px;"><b style="color:${d.color}; font-family:'Orbitron'; font-size:0.9em; text-shadow: 0 0 5px ${d.color};">[${d.sender}]</b> <span style="color:#fff">${d.message}</span></div>`);
     });
 </script>
 </body>
