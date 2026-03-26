@@ -51,15 +51,14 @@ function sellPlayer(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
     
-    // THE FIX: Engage the lock so no other buttons can break the game loop
     room.isSelling = true; 
+    room.bidTimestamps = []; // Reset hype train
     if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
 
     if (room.highestBidder) {
         const winner = room.users.find(u => u.id === room.highestBidder.id);
         if(winner) { 
             winner.purseRemaining -= room.currentBid; 
-            // THE FIX: Save the soldPrice, not just the base player object
             winner.squad.push({ ...room.currentPlayer, soldPrice: room.currentBid }); 
         }
         io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', winnerColor: winner ? winner.color : '#fff', amount: room.currentBid, users: room.users });
@@ -74,15 +73,53 @@ function promptHostForNextPlayer(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
     
-    room.isSelling = false; // Disengage lock
+    room.isSelling = false; 
     room.bidHistory = [];
     room.currentPlayer = null; 
     
-    if (room.availablePlayers.length === 0) { finishAuction(roomCode); return; }
+    if (room.availablePlayers.length === 0) { startTradePhase(roomCode); return; }
     io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
 }
 
-async function finishAuction(roomCode) {
+// --- NEW: THE TRADE PHASE ---
+function startTradePhase(roomCode) {
+    const room = activeRooms[roomCode];
+    if(!room) return;
+    room.auctionStarted = false;
+    room.tradePhase = true;
+    io.to(roomCode).emit('tradePhaseStarted', room.users);
+}
+
+// --- NEW: THE AI ROSTER ANALYST ---
+function calculateAIRating(squad) {
+    if(squad.length === 0) return "0.0";
+    
+    // Base score is the average hidden rating normalized to 10
+    let avg = squad.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / squad.length;
+    let score = avg / 10; 
+    
+    let roles = { 'Batsman':0, 'Bowler':0, 'All-Rounder':0, 'Wicketkeeper':0, 'Captain':0 };
+    squad.forEach(p => { 
+        let r = p.role;
+        // Check if player is a known captain
+        if(["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"].includes(p.name)) {
+            r = 'Captain';
+        }
+        roles[r] = (roles[r] || 0) + 1; 
+    });
+    
+    // AI Deductions for bad balance
+    if(roles['Wicketkeeper'] === 0) score -= 1.5;
+    if(roles['Bowler'] < 3) score -= 1.0;
+    if(roles['Batsman'] < 3) score -= 1.0;
+    if(roles['Captain'] === 0) score -= 0.5;
+    if(squad.length < 11) score -= 1.5;
+    
+    // Cap between 1.0 and 10.0
+    return Math.max(1.0, Math.min(10.0, score)).toFixed(1);
+}
+
+async function finishGame(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
     
@@ -90,11 +127,14 @@ async function finishAuction(roomCode) {
         name: user.name, 
         color: user.color,
         squadSize: user.squad.length,
-        purseLeft: parseFloat(user.purseRemaining).toFixed(1) 
+        purseLeft: parseFloat(user.purseRemaining).toFixed(1),
+        squad: user.squad,
+        aiRating: calculateAIRating(user.squad)
     })); 
     
-    leaderboard.sort((a, b) => b.squadSize - a.squadSize || b.purseLeft - a.purseLeft);
-    io.to(roomCode).emit('auctionEnded', leaderboard);
+    // Sort by AI Rating first, then by squad size
+    leaderboard.sort((a, b) => b.aiRating - a.aiRating || b.squadSize - a.squadSize);
+    io.to(roomCode).emit('gameEnded', leaderboard);
     
     try {
         const matchRef = ref(db, 'match_history');
@@ -112,7 +152,7 @@ io.on('connection', (socket) => {
     settings.maxSquad = 15;
     settings.maxOverseas = 4;
 
-    activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, bidHistory: [], settings: settings };
+    activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, bidHistory: [], bidTimestamps: [], settings: settings };
     socket.join(roomCode);
     activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#00e5ff', purseRemaining: settings.startingPurse, squad: [] });
     socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
@@ -147,6 +187,7 @@ io.on('connection', (socket) => {
               room.currentPlayer = room.availablePlayers.splice(pIndex, 1)[0];
               room.currentBid = room.currentPlayer.basePrice;
               room.highestBidder = null;
+              room.bidTimestamps = []; // Reset hype train
               io.to(data.roomCode).emit('newPlayerUp', { player: room.currentPlayer });
               startTimer(data.roomCode, false);
           }
@@ -159,12 +200,23 @@ io.on('connection', (socket) => {
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
-      let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + 0.5;
+      // --- NEW: THE HYPE TRAIN MATH ---
+      let now = Date.now();
+      room.bidTimestamps.push(now);
+      if(room.bidTimestamps.length > 3) room.bidTimestamps.shift();
+      
+      let isHypeMode = false;
+      // If 3 bids happen in 3 seconds (3000ms), engage Hype Mode!
+      if(room.bidTimestamps.length === 3 && (now - room.bidTimestamps[0] <= 3000)) {
+          isHypeMode = true;
+      }
+
+      let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + (isHypeMode ? 1.0 : 0.5);
       
       if (user.purseRemaining >= newBid) {
           room.bidHistory.push({ bidder: room.highestBidder, amount: room.currentBid });
           room.currentBid = newBid; room.highestBidder = user;
-          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name, bidderColor: user.color });
+          io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: user.name, bidderColor: user.color, hypeMode: isHypeMode });
           startTimer(roomCode, false);
       }
   });
@@ -185,24 +237,54 @@ io.on('connection', (socket) => {
 
   socket.on('undoBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      // THE FIX: Block undoing a bid if the timer hit 0 and it's already selling!
       if (room && room.hostId === socket.id && room.bidHistory.length > 0 && room.currentPlayer && !room.isSelling) {
           const prev = room.bidHistory.pop();
           room.currentBid = prev.amount; room.highestBidder = prev.bidder;
+          room.bidTimestamps = []; // Kill hype mode on undo
           io.to(roomCode).emit('bidUpdated', { 
               bidAmount: room.currentBid, 
               bidderName: room.highestBidder ? room.highestBidder.name : 'None',
-              bidderColor: room.highestBidder ? room.highestBidder.color : '#fff'
+              bidderColor: room.highestBidder ? room.highestBidder.color : '#fff',
+              hypeMode: false
           });
           startTimer(roomCode, false);
       }
   });
 
+  // End Auction now forces Trade Phase
   socket.on('endAuctionEarly', (roomCode) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id) {
           if (room.timerInterval) clearInterval(room.timerInterval);
-          finishAuction(roomCode);
+          startTradePhase(roomCode);
+      }
+  });
+
+  // --- NEW: HOST TRADE DESK LOGIC ---
+  socket.on('executeTrade', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room && room.hostId === socket.id && room.tradePhase) {
+          const t1 = room.users.find(u => u.name === data.team1);
+          const t2 = room.users.find(u => u.name === data.team2);
+          if(t1 && t2) {
+              const p1Index = t1.squad.findIndex(p => p.name === data.player1);
+              const p2Index = t2.squad.findIndex(p => p.name === data.player2);
+              
+              let p1 = p1Index !== -1 ? t1.squad.splice(p1Index, 1)[0] : null;
+              let p2 = p2Index !== -1 ? t2.squad.splice(p2Index, 1)[0] : null;
+              
+              if(p1) t2.squad.push(p1);
+              if(p2) t1.squad.push(p2);
+              
+              io.to(data.roomCode).emit('tradePhaseStarted', room.users); // Refresh UI
+          }
+      }
+  });
+
+  socket.on('finalizeGame', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (room && room.hostId === socket.id && room.tradePhase) {
+          finishGame(roomCode);
       }
   });
 
