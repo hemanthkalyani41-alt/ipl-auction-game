@@ -29,11 +29,11 @@ const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } 
 const playersData = JSON.parse(fs.readFileSync('./players.json', 'utf8'));
 const activeRooms = {};
 
-// Captain Interceptor list for AI Logic
 const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
 
 function startTimer(roomCode, isResume = false) {
     const room = activeRooms[roomCode];
+    if (!room) return;
     if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
     if (!isResume) room.timeLeft = 15; 
     
@@ -45,14 +45,18 @@ function startTimer(roomCode, isResume = false) {
         if (room.timeLeft <= 0) { 
             clearInterval(room.timerInterval); 
             room.timerInterval = null;
-            if(!room.isSelling && !room.tradePhase && !room.build11Phase) sellPlayer(roomCode); 
+            // FATAL CRASH FIX: Ensure currentPlayer exists before selling
+            if(room && !room.isSelling && !room.tradePhase && !room.build11Phase && room.currentPlayer) {
+                sellPlayer(roomCode); 
+            }
         }
     }, 1000);
 }
 
 function sellPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    if(!room || room.tradePhase || room.build11Phase) return; 
+    // FATAL CRASH FIX: Abort if no player is on the block
+    if(!room || room.tradePhase || room.build11Phase || !room.currentPlayer) return; 
     
     room.isSelling = true; 
     room.bidTimestamps = []; 
@@ -62,7 +66,18 @@ function sellPlayer(roomCode) {
         const winner = room.users.find(u => u.id === room.highestBidder.id);
         if(winner) { 
             winner.purseRemaining -= room.currentBid; 
-            winner.squad.push({ ...room.currentPlayer, soldPrice: room.currentBid }); 
+            
+            // Cleanly construct the player object to prevent null reference errors
+            const soldPlayer = {
+                name: room.currentPlayer.name,
+                role: room.currentPlayer.role,
+                country: room.currentPlayer.country,
+                basePrice: room.currentPlayer.basePrice,
+                hiddenRating: room.currentPlayer.hiddenRating,
+                jerseyNumber: room.currentPlayer.jerseyNumber,
+                soldPrice: room.currentBid
+            };
+            winner.squad.push(soldPlayer); 
         }
         io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', winnerColor: winner ? winner.color : '#fff', amount: room.currentBid, users: room.users });
     } else { 
@@ -91,10 +106,10 @@ function startTradePhase(roomCode) {
     room.auctionStarted = false;
     room.tradePhase = true;
     room.isSelling = false; 
+    room.currentPlayer = null; // Clear block to prevent ghost sells
     io.to(roomCode).emit('tradePhaseStarted', room.users);
 }
 
-// --- NEW: PHASE ROUTER FOR BUILD 11 ---
 function startBuild11Phase(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
@@ -103,11 +118,9 @@ function startBuild11Phase(roomCode) {
     io.to(roomCode).emit('build11PhaseStarted', room.users);
 }
 
-// --- NEW: STRICT STARTING XI ANALYST ---
 function calculateAIRating(playingXI) {
     if(!playingXI || playingXI.length === 0) return "0.0";
     
-    // Base score from the 11 selected players
     let avg = playingXI.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / playingXI.length;
     let score = avg / 10; 
     
@@ -116,18 +129,17 @@ function calculateAIRating(playingXI) {
 
     playingXI.forEach(p => { 
         let r = p.role;
-        if(captainList.includes(p.name)) r = 'Captain';
+        if(p.name && captainList.includes(p.name)) r = 'Captain';
         roles[r] = (roles[r] || 0) + 1; 
         if(p.country !== 'India') overseas++;
     });
     
-    // Strict match penalties based ONLY on the Playing 11
     if(roles['Wicketkeeper'] === 0) score -= 1.5;
     let bowlingOptions = roles['Bowler'] + roles['All-Rounder'];
-    if(bowlingOptions < 5) score -= 1.5; // Need 5 bowlers
+    if(bowlingOptions < 5) score -= 1.5; 
     if(roles['Captain'] === 0) score -= 0.5;
-    if(overseas > 4) score -= 2.0; // Illegal overseas penalty
-    if(playingXI.length < 11) score -= 2.0; // Incomplete team
+    if(overseas > 4) score -= 2.0; 
+    if(playingXI.length < 11) score -= 2.0; 
     
     return Math.max(1.0, Math.min(10.0, score)).toFixed(1);
 }
@@ -136,7 +148,6 @@ async function finishGame(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
     
-    // Failsafe: Auto-pick top 11 if user forgot to submit
     room.users.forEach(user => {
         if(!user.playing11 || user.playing11.length === 0) {
             let sortedSquad = [...user.squad].sort((a,b) => b.hiddenRating - a.hiddenRating);
@@ -174,7 +185,7 @@ io.on('connection', (socket) => {
 
     activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
     socket.join(roomCode);
-    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff5500', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
+    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#00e5ff', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
     socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
   });
 
@@ -183,7 +194,7 @@ io.on('connection', (socket) => {
     if (activeRooms[roomCode]) {
       socket.join(roomCode);
       const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
-      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] });
+      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#ff0055', purseRemaining: startMoney, squad: [], playing11: [] });
       socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
   });
@@ -269,6 +280,8 @@ io.on('connection', (socket) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id && !room.tradePhase && !room.build11Phase) {
           if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
+          room.isSelling = false;
+          room.currentPlayer = null; // Clean up the block
           startTradePhase(roomCode);
       }
   });
@@ -293,7 +306,6 @@ io.on('connection', (socket) => {
       }
   });
 
-  // --- NEW: START BUILD 11 PHASE ---
   socket.on('startBuildXI', (roomCode) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id && room.tradePhase) {
@@ -301,7 +313,6 @@ io.on('connection', (socket) => {
       }
   });
 
-  // --- NEW: RECEIVE PLAYING 11 FROM CLIENTS ---
   socket.on('submitXI', (data) => {
       const room = activeRooms[data.roomCode];
       if (room && room.build11Phase) {
@@ -310,7 +321,6 @@ io.on('connection', (socket) => {
       }
   });
 
-  // --- NEW: EVALUATE XIs AND SHOW RESULTS ---
   socket.on('evaluateResults', (roomCode) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id && room.build11Phase) {
