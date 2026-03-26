@@ -29,6 +29,9 @@ const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } 
 const playersData = JSON.parse(fs.readFileSync('./players.json', 'utf8'));
 const activeRooms = {};
 
+// Captain Interceptor list for AI Logic
+const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
+
 function startTimer(roomCode, isResume = false) {
     const room = activeRooms[roomCode];
     if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
@@ -42,14 +45,14 @@ function startTimer(roomCode, isResume = false) {
         if (room.timeLeft <= 0) { 
             clearInterval(room.timerInterval); 
             room.timerInterval = null;
-            if(!room.isSelling && !room.tradePhase) sellPlayer(roomCode); 
+            if(!room.isSelling && !room.tradePhase && !room.build11Phase) sellPlayer(roomCode); 
         }
     }, 1000);
 }
 
 function sellPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    if(!room || room.tradePhase) return; // Ghost lock
+    if(!room || room.tradePhase || room.build11Phase) return; 
     
     room.isSelling = true; 
     room.bidTimestamps = []; 
@@ -71,8 +74,7 @@ function sellPlayer(roomCode) {
 
 function promptHostForNextPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    // THE ULTIMATE FIX: If the game ended during the 3.5s wait, kill this function immediately!
-    if(!room || room.tradePhase) return; 
+    if(!room || room.tradePhase || room.build11Phase) return; 
     
     room.isSelling = false; 
     room.bidHistory = [];
@@ -88,29 +90,44 @@ function startTradePhase(roomCode) {
     if(room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
     room.auctionStarted = false;
     room.tradePhase = true;
-    room.isSelling = false; // Unlock anything stuck
+    room.isSelling = false; 
     io.to(roomCode).emit('tradePhaseStarted', room.users);
 }
 
-function calculateAIRating(squad) {
-    if(squad.length === 0) return "0.0";
-    let avg = squad.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / squad.length;
+// --- NEW: PHASE ROUTER FOR BUILD 11 ---
+function startBuild11Phase(roomCode) {
+    const room = activeRooms[roomCode];
+    if(!room) return;
+    room.tradePhase = false;
+    room.build11Phase = true;
+    io.to(roomCode).emit('build11PhaseStarted', room.users);
+}
+
+// --- NEW: STRICT STARTING XI ANALYST ---
+function calculateAIRating(playingXI) {
+    if(!playingXI || playingXI.length === 0) return "0.0";
+    
+    // Base score from the 11 selected players
+    let avg = playingXI.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / playingXI.length;
     let score = avg / 10; 
     
     let roles = { 'Batsman':0, 'Bowler':0, 'All-Rounder':0, 'Wicketkeeper':0, 'Captain':0 };
-    squad.forEach(p => { 
+    let overseas = 0;
+
+    playingXI.forEach(p => { 
         let r = p.role;
-        if(["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"].includes(p.name)) {
-            r = 'Captain';
-        }
+        if(captainList.includes(p.name)) r = 'Captain';
         roles[r] = (roles[r] || 0) + 1; 
+        if(p.country !== 'India') overseas++;
     });
     
+    // Strict match penalties based ONLY on the Playing 11
     if(roles['Wicketkeeper'] === 0) score -= 1.5;
-    if(roles['Bowler'] < 3) score -= 1.0;
-    if(roles['Batsman'] < 3) score -= 1.0;
+    let bowlingOptions = roles['Bowler'] + roles['All-Rounder'];
+    if(bowlingOptions < 5) score -= 1.5; // Need 5 bowlers
     if(roles['Captain'] === 0) score -= 0.5;
-    if(squad.length < 11) score -= 1.5;
+    if(overseas > 4) score -= 2.0; // Illegal overseas penalty
+    if(playingXI.length < 11) score -= 2.0; // Incomplete team
     
     return Math.max(1.0, Math.min(10.0, score)).toFixed(1);
 }
@@ -119,16 +136,24 @@ async function finishGame(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
     
+    // Failsafe: Auto-pick top 11 if user forgot to submit
+    room.users.forEach(user => {
+        if(!user.playing11 || user.playing11.length === 0) {
+            let sortedSquad = [...user.squad].sort((a,b) => b.hiddenRating - a.hiddenRating);
+            user.playing11 = sortedSquad.slice(0, 11);
+        }
+    });
+
     let leaderboard = room.users.map(user => ({ 
         name: user.name, 
         color: user.color,
-        squadSize: user.squad.length,
         purseLeft: parseFloat(user.purseRemaining).toFixed(1),
-        squad: user.squad,
-        aiRating: calculateAIRating(user.squad)
+        playing11: user.playing11,
+        bench: user.squad.filter(p => !user.playing11.find(xi => xi.name === p.name)),
+        aiRating: calculateAIRating(user.playing11)
     })); 
     
-    leaderboard.sort((a, b) => b.aiRating - a.aiRating || b.squadSize - a.squadSize);
+    leaderboard.sort((a, b) => b.aiRating - a.aiRating || b.purseLeft - a.purseLeft);
     io.to(roomCode).emit('gameEnded', leaderboard);
     
     try {
@@ -147,9 +172,9 @@ io.on('connection', (socket) => {
     settings.maxSquad = 15;
     settings.maxOverseas = 4;
 
-    activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, bidHistory: [], bidTimestamps: [], settings: settings };
+    activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
     socket.join(roomCode);
-    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#00e5ff', purseRemaining: settings.startingPurse, squad: [] });
+    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff5500', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
     socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
   });
 
@@ -158,7 +183,7 @@ io.on('connection', (socket) => {
     if (activeRooms[roomCode]) {
       socket.join(roomCode);
       const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
-      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#ff0055', purseRemaining: startMoney, squad: [] });
+      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] });
       socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
   });
@@ -176,7 +201,7 @@ io.on('connection', (socket) => {
 
   socket.on('bringPlayerUp', (data) => {
       const room = activeRooms[data.roomCode];
-      if (room && room.hostId === socket.id && !room.currentPlayer && !room.isSelling && !room.tradePhase) {
+      if (room && room.hostId === socket.id && !room.currentPlayer && !room.isSelling && !room.tradePhase && !room.build11Phase) {
           const pIndex = room.availablePlayers.findIndex(p => p.name === data.playerName);
           if (pIndex !== -1) {
               room.currentPlayer = room.availablePlayers.splice(pIndex, 1)[0];
@@ -200,9 +225,7 @@ io.on('connection', (socket) => {
       if(room.bidTimestamps.length > 3) room.bidTimestamps.shift();
       
       let isHypeMode = false;
-      if(room.bidTimestamps.length === 3 && (now - room.bidTimestamps[0] <= 3000)) {
-          isHypeMode = true;
-      }
+      if(room.bidTimestamps.length === 3 && (now - room.bidTimestamps[0] <= 3000)) { isHypeMode = true; }
 
       let newBid = (room.highestBidder === null) ? room.currentPlayer.basePrice : room.currentBid + (isHypeMode ? 1.0 : 0.5);
       
@@ -235,10 +258,8 @@ io.on('connection', (socket) => {
           room.currentBid = prev.amount; room.highestBidder = prev.bidder;
           room.bidTimestamps = []; 
           io.to(roomCode).emit('bidUpdated', { 
-              bidAmount: room.currentBid, 
-              bidderName: room.highestBidder ? room.highestBidder.name : 'None',
-              bidderColor: room.highestBidder ? room.highestBidder.color : '#fff',
-              hypeMode: false
+              bidAmount: room.currentBid, bidderName: room.highestBidder ? room.highestBidder.name : 'None',
+              bidderColor: room.highestBidder ? room.highestBidder.color : '#fff', hypeMode: false
           });
           startTimer(roomCode, false);
       }
@@ -246,7 +267,7 @@ io.on('connection', (socket) => {
 
   socket.on('endAuctionEarly', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && !room.tradePhase) {
+      if (room && room.hostId === socket.id && !room.tradePhase && !room.build11Phase) {
           if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
           startTradePhase(roomCode);
       }
@@ -272,9 +293,27 @@ io.on('connection', (socket) => {
       }
   });
 
-  socket.on('finalizeGame', (roomCode) => {
+  // --- NEW: START BUILD 11 PHASE ---
+  socket.on('startBuildXI', (roomCode) => {
       const room = activeRooms[roomCode];
       if (room && room.hostId === socket.id && room.tradePhase) {
+          startBuild11Phase(roomCode);
+      }
+  });
+
+  // --- NEW: RECEIVE PLAYING 11 FROM CLIENTS ---
+  socket.on('submitXI', (data) => {
+      const room = activeRooms[data.roomCode];
+      if (room && room.build11Phase) {
+          const user = room.users.find(u => u.id === socket.id);
+          if(user) user.playing11 = data.xi;
+      }
+  });
+
+  // --- NEW: EVALUATE XIs AND SHOW RESULTS ---
+  socket.on('evaluateResults', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (room && room.hostId === socket.id && room.build11Phase) {
           finishGame(roomCode);
       }
   });
