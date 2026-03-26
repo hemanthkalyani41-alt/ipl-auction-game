@@ -28,11 +28,31 @@
             color: var(--text-main); 
             margin: 0; padding: 75px 10px 120px 10px; 
             overflow-x: hidden; 
+            transition: background 0.3s;
         }
+
+        /* --- NEW: HYPE TRAIN CSS --- */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-1px, -2px) rotate(-1deg); }
+            40% { transform: translate(-3px, 0px) rotate(1deg); }
+            60% { transform: translate(3px, 2px) rotate(0deg); }
+            80% { transform: translate(1px, -1px) rotate(1deg); }
+            100% { transform: translate(-1px, 2px) rotate(-1deg); }
+        }
+        body.hype-active {
+            background-image: 
+                linear-gradient(rgba(255, 0, 85, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 0, 85, 0.08) 1px, transparent 1px);
+            animation: shake 0.4s infinite;
+        }
+        .hype-btn { background: var(--neon-red) !important; color: #fff !important; box-shadow: 0 0 30px var(--neon-red) !important; text-shadow: 0 0 10px #fff; }
 
         h1, h2, h3, .timer, .c-bid, .orbitron { font-family: 'Orbitron', sans-serif; }
 
-        .navbar { position: fixed; top: 0; left: 0; width: 100vw; height: 65px; background: rgba(5, 8, 15, 0.95); border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; box-sizing: border-box; z-index: 2000; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 229, 255, 0.15); }
+        .navbar { position: fixed; top: 0; left: 0; width: 100vw; height: 65px; background: rgba(5, 8, 15, 0.95); border-bottom: 2px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; box-sizing: border-box; z-index: 2000; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 229, 255, 0.15); transition: 0.3s;}
+        body.hype-active .navbar { border-color: var(--neon-red); box-shadow: 0 4px 30px rgba(255, 0, 85, 0.4); }
+
         .purse-container { width: 140px; height: 6px; background: #222; overflow: hidden; margin-top: 6px; border-radius: 2px; }
         .purse-filler { width: 100%; height: 100%; background: var(--gold); transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px var(--gold); }
         
@@ -60,7 +80,7 @@
         }
 
         .scout-box { background: rgba(0, 229, 255, 0.05); border-left: 3px solid var(--neon-blue); padding: 10px; margin-bottom: 12px; font-size: 0.9em; display: flex; align-items: center; gap: 10px; }
-        .scout-tag { font-weight: 700; padding: 3px 8px; color: #000; font-family: 'Orbitron'; font-size: 0.75em; letter-spacing: 1px; }
+        .scout-tag { font-weight: 700; padding: 3px 8px; color: #000; font-family: 'Orbitron'; font-size: 0.75em; letter-spacing: 1px; transition: 0.3s; }
 
         .host-selection-panel { background: rgba(255, 204, 0, 0.05); padding: 15px; border: 1px solid rgba(255, 204, 0, 0.3); margin-bottom: 10px; }
 
@@ -81,11 +101,9 @@
         .jersey-box {
             width: 85px; height: 85px;
             display: flex; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.8);
-            border: 2px solid var(--neon-blue);
+            background: rgba(0,0,0,0.8); border: 2px solid var(--neon-blue);
             clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-            box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.2);
-            transition: 0.3s;
+            box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.2); transition: 0.3s;
         }
         .jersey-box span { font-family: 'Orbitron', sans-serif; font-size: 2.5em; font-weight: 900; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
         
@@ -94,20 +112,19 @@
         .player-card.legendary .jersey-box span { color: var(--gold); text-shadow: 0 0 15px var(--neon-red); }
         .player-card.legendary #p-name { color: var(--gold); text-shadow: 0 0 10px var(--neon-red); }
         
-        /* NEW: TV BROADCAST TICKER */
         .ticker-wrap { width: 100%; overflow: hidden; background: #050810; border: 1px solid #333; border-top: none; margin-bottom: 15px; padding: 4px 0; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
         .ticker-move { display: inline-block; white-space: nowrap; font-family: 'Orbitron'; font-size: 0.75em; color: var(--gold); letter-spacing: 1px; animation: ticker 8s linear infinite; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-box { background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: center; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
+        .stat-box { background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: center; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); transition: 0.3s; }
+        body.hype-active .stat-box { border-color: var(--neon-red); }
 
         .squad-section { background: rgba(0,0,0,0.5); padding: 12px; margin-bottom: 15px; border: 1px solid rgba(0, 229, 255, 0.15); text-align: left; }
         .squad-list { max-height: 90px; overflow-y: auto; font-size: 0.9em; padding: 0; margin: 8px 0 0 0; list-style: none; color: #b0bec5;}
 
-        /* NEW: AI SQUAD NEEDS CHECKLIST */
         .needs-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; }
-        .need-badge { font-family: 'Orbitron'; font-size: 0.65em; padding: 3px 6px; border: 1px solid #444; color: #777; border-radius: 3px; background: #000; }
+        .need-badge { font-family: 'Orbitron'; font-size: 0.65em; padding: 3px 6px; border: 1px solid #444; color: #777; border-radius: 3px; background: #000; transition: 0.3s;}
         .need-badge.filled { border-color: var(--safe-green); color: var(--safe-green); background: rgba(0,255,136,0.1); }
         .need-badge.alert { border-color: var(--neon-red); color: var(--neon-red); background: rgba(255,0,85,0.1); }
 
@@ -141,6 +158,10 @@
         optgroup { background: #111; color: var(--gold); font-family: 'Orbitron'; font-weight: 900; }
         option { background: #000; color: #fff; font-family: 'Rajdhani'; font-weight: normal; }
 
+        /* SQUAD BADGES FOR RESULTS */
+        .squad-badge { display: inline-block; padding: 4px 8px; background: #111; border: 1px solid #444; margin: 3px; font-size: 0.75em; font-family: 'Orbitron'; border-radius: 3px;}
+        .squad-badge span { color: #888; margin-right: 4px; }
+
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: var(--neon-blue); }
@@ -169,7 +190,6 @@
 
 <div class="container" id="home-screen">
     <h1 style="text-align:center; color: var(--neon-blue); letter-spacing: 2px; margin-bottom: 5px;">FRANCHISE SETUP</h1>
-    
     <div style="display:flex; gap: 10px; margin-bottom: 15px;">
         <div style="flex: 2;">
             <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">TEAM NAME</div>
@@ -186,9 +206,7 @@
             </select>
         </div>
     </div>
-
     <hr style="border-color: #333; margin: 20px 0;">
-
     <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">FORMAT</div>
     <select id="format-select">
         <option value="All">ALL PLAYERS (120)</option>
@@ -196,13 +214,10 @@
         <option value="ODI">ODI DRAFT</option>
         <option value="Test">TEST CHAMPIONSHIP</option>
     </select>
-    
     <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">STARTING PURSE (CR)</div>
     <input type="number" id="purse-input" value="100">
     <button onclick="createGame()" style="width:100%; background:var(--neon-blue); padding:15px; font-family:'Orbitron'; font-weight:900; color:#000; border:none; cursor: pointer; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);">INITIALIZE SERVER</button>
-    
     <div style="text-align: center; margin: 25px 0; color: #444; font-family:'Orbitron';">— OR CONNECT —</div>
-    
     <div style="display:flex; gap:10px;">
         <input type="text" id="join-input" placeholder="ENTER ROOM CODE" style="margin:0;">
         <button onclick="joinGame()" style="width:100px; background:var(--text-main); color:#000; margin:0; border:none; font-family:'Orbitron'; font-weight:900; cursor:pointer;">JOIN</button>
@@ -222,12 +237,11 @@
 </div>
 
 <div class="container hidden" id="auction-screen">
-    
     <div id="host-controls" class="host-panel hidden">
         <button id="pause-btn" style="color: var(--gold);">⏸ PAUSE</button>
         <button id="resume-btn" class="hidden" style="color: var(--safe-green);">▶ RESUME</button>
         <button id="undo-btn">⏪ UNDO</button>
-        <button id="end-early-btn" style="color: var(--neon-red); border-color: var(--neon-red);">🛑 END</button>
+        <button id="end-early-btn" style="color: var(--neon-red); border-color: var(--neon-red);">🛑 TO TRADES</button>
     </div>
 
     <div id="host-selection-panel" class="host-selection-panel hidden">
@@ -275,9 +289,8 @@
         </div>
         
         <div class="needs-grid" id="ai-needs">
-            <span class="need-badge alert" id="need-bat">BAT (0/4)</span>
-            <span class="need-badge alert" id="need-bowl">BOWL (0/4)</span>
-            <span class="need-badge alert" id="need-ar">AR (0/2)</span>
+            <span class="need-badge alert" id="need-bat">BAT (0/3)</span>
+            <span class="need-badge alert" id="need-bowl">BOWL (0/3)</span>
             <span class="need-badge alert" id="need-wk">WK (0/1)</span>
             <span class="need-badge alert" id="need-cap">CAP (0/1)</span>
         </div>
@@ -298,15 +311,43 @@
     </div>
 </div>
 
+<div class="container hidden" id="trade-screen">
+    <h1 style="text-align:center; color: var(--safe-green); letter-spacing: 2px; margin-bottom: 5px;">TRANSFER WINDOW</h1>
+    <p style="text-align: center; color: var(--text-muted); font-size: 0.85em; margin-top: 0;">The auction has concluded. The Host may now process manual player trades.</p>
+    
+    <div id="host-trade-panel" class="host-selection-panel hidden" style="border-color: var(--safe-green); background: rgba(0,255,136,0.05);">
+        <div style="color: var(--safe-green); font-family:'Orbitron'; font-weight: 900; margin-bottom: 15px; font-size: 0.9em; text-align:center;">HOST TRADE DESK</div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <div style="flex:1;">
+                <select id="trade-team-1" onchange="updateTradeDropdowns()"><option>Select Team 1</option></select>
+                <select id="trade-player-1" style="margin-bottom:0;"><option>Select Player</option></select>
+            </div>
+            <div style="display:flex; align-items:center; color: #fff;">🔄</div>
+            <div style="flex:1;">
+                <select id="trade-team-2" onchange="updateTradeDropdowns()"><option>Select Team 2</option></select>
+                <select id="trade-player-2" style="margin-bottom:0;"><option>Select Player</option></select>
+            </div>
+        </div>
+        
+        <button id="execute-trade-btn" style="width: 100%; padding: 12px; background: var(--safe-green); color: #000; border: none; font-family:'Orbitron'; font-weight: 900; cursor: pointer; margin-top: 10px;">EXECUTE TRADE</button>
+        <button id="finalize-rosters-btn" style="width: 100%; padding: 12px; background: var(--neon-red); color: #fff; border: none; font-family:'Orbitron'; font-weight: 900; cursor: pointer; margin-top: 10px;">FINALIZE ROSTERS & RATING</button>
+    </div>
+
+    <div id="live-rosters-container" style="max-height: 400px; overflow-y: auto;">
+        </div>
+</div>
+
 <div class="container hidden" id="results-screen">
-    <h1 style="color: var(--gold); text-align: center; font-size: 2em; text-shadow: 0 0 10px rgba(255,204,0,0.3);">MATCH RESULTS</h1>
-    <div style="text-align: center; color: var(--neon-blue); margin-bottom: 25px; font-family: 'Orbitron'; font-size: 0.9em; letter-spacing: 1px;">SYSTEM OFFLINE</div>
+    <h1 style="color: var(--gold); text-align: center; font-size: 2em; text-shadow: 0 0 10px rgba(255,204,0,0.3);">FINAL RANKINGS</h1>
+    <div style="text-align: center; color: var(--neon-blue); margin-bottom: 25px; font-family: 'Orbitron'; font-size: 0.9em; letter-spacing: 1px;">AI BALANCE ALGORITHM COMPLETE</div>
     <div id="leaderboard-container"></div>
     <button onclick="location.reload()" style="width:100%; margin-top:20px; background:var(--neon-blue); color:#000; padding: 15px; border:none; font-family:'Orbitron'; font-weight:900; font-size: 1.2em; cursor:pointer; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);">INITIALIZE NEW MATCH</button>
 </div>
 
 <audio id="sfx-bid" src="https://actions.google.com/sounds/v1/ui/pop_up_on.ogg" preload="auto"></audio>
 <audio id="sfx-tick" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+<audio id="sfx-hype" src="https://actions.google.com/sounds/v1/alarms/spaceship_alarm.ogg" preload="auto"></audio>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
@@ -314,9 +355,8 @@
     let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
     let myRules = { maxSquad: 15, maxOverseas: 4 };
     let mySquadData = [];
+    let allUsersCache = [];
 
-    // --- NEW: CAPTAIN INTERCEPTOR ---
-    // Automatically flags these famous leaders as "Captain" without changing your JSON file!
     const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
 
     function speakAuction(text) {
@@ -328,7 +368,7 @@
     }
 
     function unlockAudio() {
-        ['sfx-bid', 'sfx-tick'].forEach(id => {
+        ['sfx-bid', 'sfx-tick', 'sfx-hype'].forEach(id => {
             let el = document.getElementById(id);
             el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
         });
@@ -344,12 +384,7 @@
 
     function toggleSpy() { document.getElementById('spy-menu').classList.toggle('active'); }
 
-    function getFranchiseData() {
-        return {
-            name: document.getElementById('team-name').value || 'Unknown Franchise',
-            color: document.getElementById('team-color').value
-        };
-    }
+    function getFranchiseData() { return { name: document.getElementById('team-name').value || 'Unknown', color: document.getElementById('team-color').value }; }
 
     function createGame() {
         initialPurse = document.getElementById('purse-input').value;
@@ -377,10 +412,6 @@
         
         myRules.maxSquad = parseInt(document.getElementById('max-squad').value);
         myRules.maxOverseas = parseInt(document.getElementById('max-os').value);
-        
-        document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
-        document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
-
         socket.emit('updateRulesAndStart', { roomCode: room, maxSquad: myRules.maxSquad, maxOverseas: myRules.maxOverseas });
     }
 
@@ -391,14 +422,12 @@
         document.getElementById('nav-code').innerText = room; 
     });
 
-    socket.on('rulesUpdated', rules => {
-        myRules = rules;
-        document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
-        document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
-    });
+    socket.on('rulesUpdated', rules => { myRules = rules; });
 
     socket.on('waitingForNextPlayer', list => {
         document.getElementById('main-player-card').classList.remove('legendary');
+        document.body.classList.remove('hype-active');
+        document.getElementById('bid-btn').classList.remove('hype-btn');
         
         document.getElementById('p-name').innerText = "SYSTEM STANDBY";
         document.getElementById('p-name').style.color = "#fff";
@@ -423,7 +452,6 @@
             const dropdown = document.getElementById('next-player-dropdown');
             dropdown.innerHTML = '';
             
-            // PRE-PROCESS CAPTAINS INTERCEPT
             list.forEach(p => { if(captainList.includes(p.name)) p.role = "Captain"; });
             
             const roles = ['Captain', 'Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'];
@@ -461,12 +489,13 @@
         }
     };
 
-    let currentIsOverseas = false;
     socket.on('newPlayerUp', d => {
         currentHiddenRating = d.player.hiddenRating;
-        currentIsOverseas = d.player.country !== 'India'; 
-        
-        if(captainList.includes(d.player.name)) d.player.role = "Captain"; // Intercept role
+        let currentIsOverseas = d.player.country !== 'India'; 
+        if(captainList.includes(d.player.name)) d.player.role = "Captain"; 
+
+        document.body.classList.remove('hype-active');
+        document.getElementById('bid-btn').classList.remove('hype-btn');
 
         const card = document.getElementById('main-player-card');
         const pName = document.getElementById('p-name');
@@ -478,7 +507,7 @@
             card.classList.remove('legendary');
             pName.style.color = "#fff";
             pName.style.textShadow = "none";
-            speakAuction(`${d.player.name} is up for auction.`);
+            speakAuction(`${d.player.name} is up.`);
         }
 
         const osIcon = currentIsOverseas ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="var(--neon-blue)" style="vertical-align: middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>` : '';
@@ -489,9 +518,7 @@
         document.getElementById('p-info').innerHTML = `${d.player.role} | ${d.player.country} ${osIcon}`;
         document.getElementById('c-bid').innerText = d.player.basePrice.toFixed(1);
         
-        // --- NEW: DYNAMIC BROADCAST TICKER STATS ---
-        let tvStats = "";
-        let rate = currentHiddenRating;
+        let tvStats = ""; let rate = currentHiddenRating;
         if(d.player.role === 'Batsman') tvStats = `🔥 ${Math.floor(rate * 45)} IPL Runs | ⚡ Strike Rate: ${Math.floor(rate * 1.5)} | 💥 High Score: ${Math.floor(rate * 1.3)}`;
         else if(d.player.role === 'Bowler') tvStats = `🎯 ${Math.floor(rate * 1.8)} Wickets | 📉 Economy: ${(rate > 90 ? 6.5 : 7.8)} | 🏏 Best: ${Math.floor(rate / 20)}/${Math.floor(rate / 3)}`;
         else if(d.player.role === 'All-Rounder') tvStats = `🔥 ${Math.floor(rate * 30)} Runs | 🎯 ${Math.floor(rate * 1.2)} Wickets | 🏆 Match Winner`;
@@ -505,7 +532,6 @@
         cBidder.style.textShadow = "none";
         
         document.getElementById('timer').style.color = "var(--neon-red)";
-        
         document.getElementById('scout-tag').innerText = "ACTIVE";
         document.getElementById('scout-tag').style.background = "var(--neon-blue)";
         document.getElementById('scout-msg').innerText = "Target acquired. Awaiting bids...";
@@ -523,13 +549,7 @@
 
     document.getElementById('bid-btn').onclick = () => { 
         if (document.getElementById('bid-btn').classList.contains('disabled')) return;
-        
-        const currentOsCount = mySquadData.filter(p => p.country !== 'India').length;
-        if(mySquadData.length >= myRules.maxSquad) { alert("Maximum squad capacity reached."); return; }
-        if(currentIsOverseas && currentOsCount >= myRules.maxOverseas) { alert("Overseas quota exceeded."); return; }
-        
         socket.emit('placeBid', room); 
-        playSfx('sfx-bid'); 
     };
 
     socket.on('bidUpdated', d => {
@@ -542,13 +562,28 @@
         
         playSfx('sfx-bid');
 
-        const valueRatio = (d.bidAmount * 10) / currentHiddenRating; 
-        const scoutTag = document.getElementById('scout-tag');
-        const scoutMsg = document.getElementById('scout-msg');
-
-        if(valueRatio < 0.5) { scoutTag.innerText = "STEAL"; scoutTag.style.background = "var(--safe-green)"; scoutMsg.innerText = "High value target."; }
-        else if(valueRatio < 1.2) { scoutTag.innerText = "FAIR"; scoutTag.style.background = "var(--gold)"; scoutMsg.innerText = "Market value approaching."; }
-        else { scoutTag.innerText = "OVERPAID"; scoutTag.style.background = "var(--neon-red)"; scoutMsg.innerText = "Warning: Critical fund drain detected!"; }
+        // --- NEW: HYPE TRAIN UI LOGIC ---
+        const btn = document.getElementById('bid-btn');
+        if (d.hypeMode) {
+            if(!document.body.classList.contains('hype-active')) { playSfx('sfx-hype'); }
+            document.body.classList.add('hype-active');
+            btn.classList.add('hype-btn');
+            btn.innerText = "HYPE BIDS (+1.0 CR) 🔥";
+            document.getElementById('scout-tag').innerText = "HYPE TRAIN";
+            document.getElementById('scout-tag').style.background = "var(--neon-red)";
+            document.getElementById('scout-msg').innerText = "Bidding velocity critical!";
+        } else {
+            document.body.classList.remove('hype-active');
+            btn.classList.remove('hype-btn');
+            btn.innerText = "TRANSMIT BID";
+            
+            const valueRatio = (d.bidAmount * 10) / currentHiddenRating; 
+            const scoutTag = document.getElementById('scout-tag');
+            const scoutMsg = document.getElementById('scout-msg');
+            if(valueRatio < 0.5) { scoutTag.innerText = "STEAL"; scoutTag.style.background = "var(--safe-green)"; scoutMsg.innerText = "High value target."; }
+            else if(valueRatio < 1.2) { scoutTag.innerText = "FAIR"; scoutTag.style.background = "var(--gold)"; scoutMsg.innerText = "Market value approaching."; }
+            else { scoutTag.innerText = "OVERPAID"; scoutTag.style.background = "var(--neon-red)"; scoutMsg.innerText = "Warning: Critical fund drain detected!"; }
+        }
     });
 
     socket.on('timerUpdate', t => {
@@ -558,10 +593,11 @@
 
     socket.on('playerSold', d => {
         speakAuction(`Sold to ${d.winnerName} for ${d.amount.toFixed(1)} Crores.`); 
+        document.body.classList.remove('hype-active');
         
         const me = d.users.find(u => u.id === socket.id);
         
-        // --- NEW: VICTORY SPARKS VFX ---
+        // CONFETTI VFX IF I WON
         if(me && me.name === d.winnerName) {
             confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: [d.winnerColor, '#ffffff'] });
         }
@@ -575,12 +611,14 @@
             document.getElementById('squad-count').innerText = me.squad.length;
             document.getElementById('os-count').innerText = me.squad.filter(p => p.country !== 'India').length;
             
-            // --- NEW: AI SQUAD NEEDS LOGIC ---
-            let bats=0, bowls=0, ars=0, wks=0, caps=0;
+            // AI SQUAD CHECKLIST
+            let bats=0, bowls=0, wks=0, caps=0;
             me.squad.forEach(p => {
-                if(p.role === 'Batsman') bats++; else if(p.role === 'Bowler') bowls++;
-                else if(p.role === 'All-Rounder') ars++; else if(p.role === 'Wicketkeeper') wks++;
-                else if(p.role === 'Captain' || captainList.includes(p.name)) caps++;
+                let r = captainList.includes(p.name) ? 'Captain' : p.role;
+                if(r === 'Batsman' || r === 'All-Rounder') bats++; 
+                if(r === 'Bowler' || r === 'All-Rounder') bowls++;
+                if(r === 'Wicketkeeper') wks++;
+                if(r === 'Captain') caps++;
             });
             
             const updateBadge = (id, count, req) => {
@@ -588,8 +626,8 @@
                 el.innerText = `${id.replace('need-','').toUpperCase()} (${count}/${req})`;
                 if(count >= req) { el.classList.remove('alert'); el.classList.add('filled'); }
             };
-            updateBadge('need-bat', bats, 4); updateBadge('need-bowl', bowls, 4);
-            updateBadge('need-ar', ars, 2); updateBadge('need-wk', wks, 1); updateBadge('need-cap', caps, 1);
+            updateBadge('need-bat', bats, 3); updateBadge('need-bowl', bowls, 3);
+            updateBadge('need-wk', wks, 1); updateBadge('need-cap', caps, 1);
 
             const list = document.getElementById('my-squad-list');
             list.innerHTML = '';
@@ -614,6 +652,7 @@
     });
 
     socket.on('playerUnsold', () => { 
+        document.body.classList.remove('hype-active');
         document.getElementById('p-name').innerText = "UNSOLD"; 
         speakAuction("Player Unsold."); 
     });
@@ -632,22 +671,86 @@
         if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
     });
 
-    socket.on('auctionEnded', leaderboardData => {
+    // --- NEW: POST-AUCTION TRADE PHASE UI ---
+    function renderTradeRosters() {
+        const box = document.getElementById('live-rosters-container');
+        box.innerHTML = '';
+        allUsersCache.forEach(u => {
+            let pHtml = '';
+            u.squad.forEach(p => { pHtml += `<div class="squad-badge" style="border-color:${u.color};"><span>#${p.jerseyNumber}</span> ${p.name}</div>`; });
+            box.innerHTML += `
+                <div style="background: rgba(0,0,0,0.6); padding: 10px; border-left: 4px solid ${u.color}; margin-bottom: 10px;">
+                    <div style="color:${u.color}; font-family:'Orbitron'; font-weight:900; margin-bottom: 5px;">${u.name}</div>
+                    ${pHtml || '<div style="color:#555; font-size:0.8em;">No players.</div>'}
+                </div>`;
+        });
+    }
+
+    socket.on('tradePhaseStarted', users => {
+        allUsersCache = users;
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        document.getElementById('trade-screen').classList.remove('hidden');
+        renderTradeRosters();
+
+        if(isHost) {
+            document.getElementById('host-trade-panel').classList.remove('hidden');
+            const t1 = document.getElementById('trade-team-1'); const t2 = document.getElementById('trade-team-2');
+            t1.innerHTML = '<option value="">Select Team 1</option>'; t2.innerHTML = '<option value="">Select Team 2</option>';
+            users.forEach(u => {
+                t1.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+                t2.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+            });
+        }
+    });
+
+    function updateTradeDropdowns() {
+        const t1Name = document.getElementById('trade-team-1').value;
+        const t2Name = document.getElementById('trade-team-2').value;
+        const p1Select = document.getElementById('trade-player-1');
+        const p2Select = document.getElementById('trade-player-2');
+        p1Select.innerHTML = '<option value="">Select Player</option>';
+        p2Select.innerHTML = '<option value="">Select Player</option>';
+        
+        const u1 = allUsersCache.find(u => u.name === t1Name);
+        if(u1) u1.squad.forEach(p => p1Select.innerHTML += `<option value="${p.name}">${p.name}</option>`);
+        
+        const u2 = allUsersCache.find(u => u.name === t2Name);
+        if(u2) u2.squad.forEach(p => p2Select.innerHTML += `<option value="${p.name}">${p.name}</option>`);
+    }
+
+    document.getElementById('execute-trade-btn').onclick = () => {
+        socket.emit('executeTrade', {
+            roomCode: room,
+            team1: document.getElementById('trade-team-1').value, player1: document.getElementById('trade-player-1').value,
+            team2: document.getElementById('trade-team-2').value, player2: document.getElementById('trade-player-2').value
+        });
+    };
+
+    document.getElementById('finalize-rosters-btn').onclick = () => { socket.emit('finalizeGame', room); };
+
+    // --- NEW: RESULTS WITH FULL SQUADS & AI SCORE ---
+    socket.on('gameEnded', leaderboardData => {
         document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
         document.getElementById('results-screen').classList.remove('hidden');
         
         const board = document.getElementById('leaderboard-container');
         board.innerHTML = ''; 
         leaderboardData.forEach((team, index) => {
+            let squadHtml = '';
+            team.squad.forEach(p => { squadHtml += `<span class="squad-badge" style="border-color:${team.color}"><span>#${p.jerseyNumber}</span>${p.name}</span>`; });
+            
             board.innerHTML += `
-            <div style="background: rgba(0,0,0,0.6); border: 1px solid ${team.color}; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${team.color}; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
-                <div style="text-align: left;">
-                    <h2 style="margin: 0; color: ${team.color}; font-size: 1.3em; text-shadow: 0 0 10px ${team.color};">#${index + 1} ${team.name}</h2>
-                    <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.85em;">Roster Status: ${team.squadSize} Players</p>
+            <div style="background: rgba(0,0,0,0.6); border: 1px solid ${team.color}; padding: 15px; margin-bottom: 15px; border-left: 5px solid ${team.color}; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
+                    <div style="text-align: left;">
+                        <h2 style="margin: 0; color: ${team.color}; font-size: 1.3em; text-shadow: 0 0 10px ${team.color};">#${index + 1} ${team.name}</h2>
+                        <div style="color: var(--safe-green); font-family: 'Orbitron'; font-size: 0.85em; margin-top: 5px;">AI RATING: <b style="font-size:1.2em;">${team.aiRating}</b> / 10.0</div>
+                    </div>
+                    <div style="color: var(--gold); font-family: 'Orbitron'; font-weight: 900; font-size: 1.2em; text-align: right;">
+                        ₹${team.purseLeft}Cr <br><span style="font-size: 0.5em; color: #777;">REMAINING</span>
+                    </div>
                 </div>
-                <div style="color: var(--gold); font-family: 'Orbitron'; font-weight: 900; font-size: 1.2em; text-align: right;">
-                    ₹${team.purseLeft}Cr <br><span style="font-size: 0.5em; color: #777;">REMAINING</span>
-                </div>
+                <div style="text-align: left;">${squadHtml}</div>
             </div>`;
         });
     });
@@ -662,15 +765,11 @@
     
     document.getElementById('send-btn').onclick = sendChatMsg;
     document.getElementById('chat-input').addEventListener('keypress', function (e) { 
-        if (e.key === 'Enter' || e.keyCode === 13) { 
-            e.preventDefault(); 
-            sendChatMsg(); 
-        } 
+        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); sendChatMsg(); } 
     });
 
     socket.on('receiveChatMessage', d => { 
         const box = document.getElementById('chat-messages');
-        // THE FIX: insertAdjacentHTML('afterbegin') pushes new messages to the TOP of the chat box. No scrolling needed!
         box.insertAdjacentHTML('afterbegin', `<div style="margin-bottom: 6px;"><b style="color:${d.color}; font-family:'Orbitron'; font-size:0.9em; text-shadow: 0 0 5px ${d.color};">[${d.sender}]</b> <span style="color:#fff">${d.message}</span></div>`);
     });
 </script>
