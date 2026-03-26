@@ -42,17 +42,17 @@ function startTimer(roomCode, isResume = false) {
         if (room.timeLeft <= 0) { 
             clearInterval(room.timerInterval); 
             room.timerInterval = null;
-            if(!room.isSelling) sellPlayer(roomCode); 
+            if(!room.isSelling && !room.tradePhase) sellPlayer(roomCode); 
         }
     }, 1000);
 }
 
 function sellPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    if(!room) return;
+    if(!room || room.tradePhase) return; // Ghost lock
     
     room.isSelling = true; 
-    room.bidTimestamps = []; // Reset hype train
+    room.bidTimestamps = []; 
     if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
 
     if (room.highestBidder) {
@@ -71,7 +71,8 @@ function sellPlayer(roomCode) {
 
 function promptHostForNextPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    if(!room) return;
+    // THE ULTIMATE FIX: If the game ended during the 3.5s wait, kill this function immediately!
+    if(!room || room.tradePhase) return; 
     
     room.isSelling = false; 
     room.bidHistory = [];
@@ -81,41 +82,36 @@ function promptHostForNextPlayer(roomCode) {
     io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
 }
 
-// --- NEW: THE TRADE PHASE ---
 function startTradePhase(roomCode) {
     const room = activeRooms[roomCode];
     if(!room) return;
+    if(room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
     room.auctionStarted = false;
     room.tradePhase = true;
+    room.isSelling = false; // Unlock anything stuck
     io.to(roomCode).emit('tradePhaseStarted', room.users);
 }
 
-// --- NEW: THE AI ROSTER ANALYST ---
 function calculateAIRating(squad) {
     if(squad.length === 0) return "0.0";
-    
-    // Base score is the average hidden rating normalized to 10
     let avg = squad.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / squad.length;
     let score = avg / 10; 
     
     let roles = { 'Batsman':0, 'Bowler':0, 'All-Rounder':0, 'Wicketkeeper':0, 'Captain':0 };
     squad.forEach(p => { 
         let r = p.role;
-        // Check if player is a known captain
         if(["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"].includes(p.name)) {
             r = 'Captain';
         }
         roles[r] = (roles[r] || 0) + 1; 
     });
     
-    // AI Deductions for bad balance
     if(roles['Wicketkeeper'] === 0) score -= 1.5;
     if(roles['Bowler'] < 3) score -= 1.0;
     if(roles['Batsman'] < 3) score -= 1.0;
     if(roles['Captain'] === 0) score -= 0.5;
     if(squad.length < 11) score -= 1.5;
     
-    // Cap between 1.0 and 10.0
     return Math.max(1.0, Math.min(10.0, score)).toFixed(1);
 }
 
@@ -132,7 +128,6 @@ async function finishGame(roomCode) {
         aiRating: calculateAIRating(user.squad)
     })); 
     
-    // Sort by AI Rating first, then by squad size
     leaderboard.sort((a, b) => b.aiRating - a.aiRating || b.squadSize - a.squadSize);
     io.to(roomCode).emit('gameEnded', leaderboard);
     
@@ -181,13 +176,13 @@ io.on('connection', (socket) => {
 
   socket.on('bringPlayerUp', (data) => {
       const room = activeRooms[data.roomCode];
-      if (room && room.hostId === socket.id && !room.currentPlayer && !room.isSelling) {
+      if (room && room.hostId === socket.id && !room.currentPlayer && !room.isSelling && !room.tradePhase) {
           const pIndex = room.availablePlayers.findIndex(p => p.name === data.playerName);
           if (pIndex !== -1) {
               room.currentPlayer = room.availablePlayers.splice(pIndex, 1)[0];
               room.currentBid = room.currentPlayer.basePrice;
               room.highestBidder = null;
-              room.bidTimestamps = []; // Reset hype train
+              room.bidTimestamps = []; 
               io.to(data.roomCode).emit('newPlayerUp', { player: room.currentPlayer });
               startTimer(data.roomCode, false);
           }
@@ -196,17 +191,15 @@ io.on('connection', (socket) => {
 
   socket.on('placeBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null || !room.currentPlayer) return;
+      if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null || !room.currentPlayer || room.tradePhase) return;
       const user = room.users.find(u => u.id === socket.id);
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
-      // --- NEW: THE HYPE TRAIN MATH ---
       let now = Date.now();
       room.bidTimestamps.push(now);
       if(room.bidTimestamps.length > 3) room.bidTimestamps.shift();
       
       let isHypeMode = false;
-      // If 3 bids happen in 3 seconds (3000ms), engage Hype Mode!
       if(room.bidTimestamps.length === 3 && (now - room.bidTimestamps[0] <= 3000)) {
           isHypeMode = true;
       }
@@ -223,24 +216,24 @@ io.on('connection', (socket) => {
 
   socket.on('pauseAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && room.currentPlayer && !room.isSelling) { 
+      if (room && room.hostId === socket.id && room.currentPlayer && !room.isSelling && !room.tradePhase) { 
           clearInterval(room.timerInterval); room.timerInterval = null; io.to(roomCode).emit('auctionPaused'); 
       }
   });
 
   socket.on('resumeAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && room.currentPlayer && !room.isSelling) { 
+      if (room && room.hostId === socket.id && room.currentPlayer && !room.isSelling && !room.tradePhase) { 
           startTimer(roomCode, true); io.to(roomCode).emit('auctionResumed'); 
       }
   });
 
   socket.on('undoBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && room.bidHistory.length > 0 && room.currentPlayer && !room.isSelling) {
+      if (room && room.hostId === socket.id && room.bidHistory.length > 0 && room.currentPlayer && !room.isSelling && !room.tradePhase) {
           const prev = room.bidHistory.pop();
           room.currentBid = prev.amount; room.highestBidder = prev.bidder;
-          room.bidTimestamps = []; // Kill hype mode on undo
+          room.bidTimestamps = []; 
           io.to(roomCode).emit('bidUpdated', { 
               bidAmount: room.currentBid, 
               bidderName: room.highestBidder ? room.highestBidder.name : 'None',
@@ -251,16 +244,14 @@ io.on('connection', (socket) => {
       }
   });
 
-  // End Auction now forces Trade Phase
   socket.on('endAuctionEarly', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id) {
-          if (room.timerInterval) clearInterval(room.timerInterval);
+      if (room && room.hostId === socket.id && !room.tradePhase) {
+          if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
           startTradePhase(roomCode);
       }
   });
 
-  // --- NEW: HOST TRADE DESK LOGIC ---
   socket.on('executeTrade', (data) => {
       const room = activeRooms[data.roomCode];
       if (room && room.hostId === socket.id && room.tradePhase) {
@@ -276,7 +267,7 @@ io.on('connection', (socket) => {
               if(p1) t2.squad.push(p1);
               if(p2) t1.squad.push(p2);
               
-              io.to(data.roomCode).emit('tradePhaseStarted', room.users); // Refresh UI
+              io.to(data.roomCode).emit('tradePhaseStarted', room.users); 
           }
       }
   });
