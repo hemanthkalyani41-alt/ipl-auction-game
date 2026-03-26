@@ -31,34 +31,50 @@ const activeRooms = {};
 
 function startTimer(roomCode, isResume = false) {
     const room = activeRooms[roomCode];
-    if (room.timerInterval) clearInterval(room.timerInterval);
+    if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
     if (!isResume) room.timeLeft = 15; 
+    
     io.to(roomCode).emit('timerUpdate', room.timeLeft);
+    
     room.timerInterval = setInterval(() => {
         room.timeLeft--;
         io.to(roomCode).emit('timerUpdate', room.timeLeft);
-        if (room.timeLeft <= 0) { clearInterval(room.timerInterval); sellPlayer(roomCode); }
+        if (room.timeLeft <= 0) { 
+            clearInterval(room.timerInterval); 
+            room.timerInterval = null;
+            if(!room.isSelling) sellPlayer(roomCode); 
+        }
     }, 1000);
 }
 
 function sellPlayer(roomCode) {
     const room = activeRooms[roomCode];
+    if(!room) return;
+    
+    // THE FIX: Engage the lock so no other buttons can break the game loop
     room.isSelling = true; 
+    if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
+
     if (room.highestBidder) {
         const winner = room.users.find(u => u.id === room.highestBidder.id);
         if(winner) { 
             winner.purseRemaining -= room.currentBid; 
-            winner.squad.push(room.currentPlayer); 
+            // THE FIX: Save the soldPrice, not just the base player object
+            winner.squad.push({ ...room.currentPlayer, soldPrice: room.currentBid }); 
         }
         io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', winnerColor: winner ? winner.color : '#fff', amount: room.currentBid, users: room.users });
-    } else { io.to(roomCode).emit('playerUnsold'); }
+    } else { 
+        io.to(roomCode).emit('playerUnsold'); 
+    }
     
     setTimeout(() => { promptHostForNextPlayer(roomCode); }, 3500);
 }
 
 function promptHostForNextPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    room.isSelling = false; 
+    if(!room) return;
+    
+    room.isSelling = false; // Disengage lock
     room.bidHistory = [];
     room.currentPlayer = null; 
     
@@ -89,15 +105,7 @@ async function finishAuction(roomCode) {
 io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-    
-    // THE 120 PLAYER FIX: If "All" is selected, bypass the filter entirely!
-    let pool;
-    if (settings.format === 'All') {
-        pool = playersData;
-    } else {
-        pool = playersData.filter(p => p.formats && p.formats.includes(settings.format));
-    }
-    
+    let pool = (settings.format === 'All') ? playersData : playersData.filter(p => p.formats && p.formats.includes(settings.format));
     let shuffled = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
     
     settings.startingPurse = parseFloat(settings.startingPurse) || 100;
@@ -133,7 +141,7 @@ io.on('connection', (socket) => {
 
   socket.on('bringPlayerUp', (data) => {
       const room = activeRooms[data.roomCode];
-      if (room && room.hostId === socket.id && !room.currentPlayer) {
+      if (room && room.hostId === socket.id && !room.currentPlayer && !room.isSelling) {
           const pIndex = room.availablePlayers.findIndex(p => p.name === data.playerName);
           if (pIndex !== -1) {
               room.currentPlayer = room.availablePlayers.splice(pIndex, 1)[0];
@@ -163,17 +171,22 @@ io.on('connection', (socket) => {
 
   socket.on('pauseAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && room.currentPlayer) { clearInterval(room.timerInterval); room.timerInterval = null; io.to(roomCode).emit('auctionPaused'); }
+      if (room && room.hostId === socket.id && room.currentPlayer && !room.isSelling) { 
+          clearInterval(room.timerInterval); room.timerInterval = null; io.to(roomCode).emit('auctionPaused'); 
+      }
   });
 
   socket.on('resumeAuction', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && room.currentPlayer) { startTimer(roomCode, true); io.to(roomCode).emit('auctionResumed'); }
+      if (room && room.hostId === socket.id && room.currentPlayer && !room.isSelling) { 
+          startTimer(roomCode, true); io.to(roomCode).emit('auctionResumed'); 
+      }
   });
 
   socket.on('undoBid', (roomCode) => {
       const room = activeRooms[roomCode];
-      if (room && room.hostId === socket.id && room.bidHistory.length > 0 && room.currentPlayer) {
+      // THE FIX: Block undoing a bid if the timer hit 0 and it's already selling!
+      if (room && room.hostId === socket.id && room.bidHistory.length > 0 && room.currentPlayer && !room.isSelling) {
           const prev = room.bidHistory.pop();
           room.currentBid = prev.amount; room.highestBidder = prev.bidder;
           io.to(roomCode).emit('bidUpdated', { 
