@@ -30,7 +30,7 @@ let playersData = [];
 try {
     playersData = JSON.parse(fs.readFileSync('./players.json', 'utf8'));
 } catch (err) {
-    console.error("FATAL ERROR: Your players.json file has a syntax error (likely a missing bracket or trailing comma). The server cannot read the players.", err);
+    console.error("FATAL ERROR: players.json missing or broken.", err);
 }
 
 const activeRooms = {};
@@ -71,12 +71,9 @@ function sellPlayer(roomCode) {
             if(winner) { 
                 winner.purseRemaining -= room.currentBid; 
                 const soldPlayer = {
-                    name: room.currentPlayer.name,
-                    role: room.currentPlayer.role,
-                    country: room.currentPlayer.country,
-                    basePrice: room.currentPlayer.basePrice,
-                    hiddenRating: room.currentPlayer.hiddenRating,
-                    jerseyNumber: room.currentPlayer.jerseyNumber,
+                    name: room.currentPlayer.name, role: room.currentPlayer.role,
+                    country: room.currentPlayer.country, basePrice: room.currentPlayer.basePrice,
+                    hiddenRating: room.currentPlayer.hiddenRating, jerseyNumber: room.currentPlayer.jerseyNumber,
                     soldPrice: room.currentBid
                 };
                 winner.squad.push(soldPlayer); 
@@ -93,15 +90,19 @@ function sellPlayer(roomCode) {
 }
 
 function promptHostForNextPlayer(roomCode) {
-    const room = activeRooms[roomCode];
-    if(!room || room.tradePhase || room.build11Phase) return; 
-    
-    room.isSelling = false; 
-    room.bidHistory = [];
-    room.currentPlayer = null; 
-    
-    if (room.availablePlayers.length === 0) { startTradePhase(roomCode); return; }
-    io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
+    try {
+        const room = activeRooms[roomCode];
+        if(!room || room.tradePhase || room.build11Phase) return; 
+        
+        room.isSelling = false; 
+        room.bidHistory = [];
+        room.currentPlayer = null; 
+        
+        if (room.availablePlayers.length === 0) { startTradePhase(roomCode); return; }
+        io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 function startTradePhase(roomCode) {
@@ -154,7 +155,6 @@ function calculateAIRating(playingXI) {
     
     let bowlingOptions = roles['Pacer'] + roles['Spinner'] + roles['All-Rounder'];
     if(bowlingOptions < 5) score -= 1.5; 
-    
     if(roles['Captain'] === 0) score -= 0.5;
     if(overseas > 4) score -= 2.0; 
     if(playingXI.length < 11) score -= 2.0; 
@@ -174,8 +174,7 @@ async function finishGame(roomCode) {
     });
 
     let leaderboard = room.users.map(user => ({ 
-        name: user.name, 
-        color: user.color,
+        name: user.name, color: user.color,
         purseLeft: parseFloat(user.purseRemaining).toFixed(1),
         playing11: user.playing11,
         bench: user.squad.filter(p => !user.playing11.find(xi => xi.name === p.name)),
@@ -207,21 +206,51 @@ io.on('connection', (socket) => {
         activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff003c', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
         socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
     } catch (err) {
-        console.error("Create Room Crash Prevented:", err);
+        console.error("Create Room Crash:", err);
     }
   });
 
   socket.on('joinRoom', (data) => {
     try {
         const roomCode = data.roomCode.toUpperCase();
-        if (activeRooms[roomCode]) {
-          socket.join(roomCode);
-          const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
-          activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] });
-          socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
+        const room = activeRooms[roomCode];
+        
+        if (room) {
+            socket.join(roomCode);
+            
+            // --- THE ULTIMATE FIX: STATE RECOVERY ENGINE ---
+            let existingUser = room.users.find(u => u.name === data.teamName);
+            
+            if (existingUser) {
+                // If the Host disconnected, give them their crown back!
+                if (room.hostId === existingUser.id) { room.hostId = socket.id; }
+                existingUser.id = socket.id;
+            } else {
+                const startMoney = parseFloat(room.settings.startingPurse) || 100;
+                existingUser = { id: socket.id, name: data.teamName || `Player ${room.users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] };
+                room.users.push(existingUser);
+            }
+
+            let isUserHost = (room.hostId === socket.id);
+            socket.emit('roomJoined', { code: roomCode, purse: existingUser.purseRemaining, rules: room.settings, isHost: isUserHost });
+
+            // Restore the exact screen they were on before they disconnected!
+            if (room.build11Phase) {
+                socket.emit('build11PhaseStarted', room.users);
+            } else if (room.tradePhase) {
+                socket.emit('tradePhaseStarted', room.users);
+            } else if (room.auctionStarted) {
+                if (room.currentPlayer) {
+                    socket.emit('newPlayerUp', { player: room.currentPlayer });
+                    if (room.highestBidder) socket.emit('bidUpdated', { bidAmount: room.currentBid, bidderName: room.highestBidder.name, bidderColor: room.highestBidder.color, hypeMode: false });
+                    socket.emit('timerUpdate', room.timeLeft);
+                } else {
+                    socket.emit('waitingForNextPlayer', room.availablePlayers);
+                }
+            }
         }
     } catch (err) {
-        console.error("Join Room Crash Prevented:", err);
+        console.error("Join Room Crash:", err);
     }
   });
 
@@ -258,7 +287,7 @@ io.on('connection', (socket) => {
       const room = activeRooms[roomCode];
       if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null || !room.currentPlayer || room.tradePhase) return;
       const user = room.users.find(u => u.id === socket.id);
-      if (!user) return;
+      if (!user) return; 
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
       let now = Date.now();
