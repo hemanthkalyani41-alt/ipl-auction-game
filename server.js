@@ -134,7 +134,7 @@ function calculateAIRating(playingXI) {
         
         if(r === 'Captain') {
             if(["Rohit Sharma", "Shubman Gill", "KL Rahul", "Babar Azam"].includes(p.name)) roles['Opener']++;
-            if(["Virat Kohli", "Shreyas Iyer", "Kane Williamson"].includes(p.name)) roles['Middle Order']++;
+            if(["Virat Kohli", "Shreyas Iyer", "Kane Williamson", "AB de Villiers"].includes(p.name)) roles['Middle Order']++;
             if(["Pat Cummins"].includes(p.name)) roles['Pacer']++;
             if(["MS Dhoni", "Sanju Samson"].includes(p.name)) roles['Wicketkeeper']++;
         }
@@ -206,9 +206,24 @@ io.on('connection', (socket) => {
     const roomCode = data.roomCode.toUpperCase();
     if (activeRooms[roomCode]) {
       socket.join(roomCode);
-      const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
-      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] });
-      socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
+      
+      // --- NEW: THE RECONNECTION ENGINE ---
+      let existingUser = activeRooms[roomCode].users.find(u => u.name === data.teamName);
+      
+      if (existingUser) {
+          // If the disconnected user was the Host, restore their Host privileges
+          if (activeRooms[roomCode].hostId === existingUser.id) {
+              activeRooms[roomCode].hostId = socket.id;
+          }
+          // Update their socket fingerprint and let them back into the game
+          existingUser.id = socket.id;
+          socket.emit('roomJoined', { code: roomCode, purse: existingUser.purseRemaining, rules: activeRooms[roomCode].settings });
+      } else {
+          // Normal fresh join
+          const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
+          activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] });
+          socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
+      }
     }
   });
 
@@ -225,12 +240,10 @@ io.on('connection', (socket) => {
 
   socket.on('bringPlayerUp', (data) => {
       const room = activeRooms[data.roomCode];
-      // HOST OVERRIDE FIX: Removed the restrictive lock conditions. 
-      // If the Host clicks a player, the server forces the game loop to unlock and obey.
       if (room && room.hostId === socket.id && !room.tradePhase && !room.build11Phase) {
           
           if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
-          room.isSelling = false; // Force unlock the deadlock
+          room.isSelling = false; 
 
           const pIndex = room.availablePlayers.findIndex(p => p.name === data.playerName);
           if (pIndex !== -1) {
@@ -248,6 +261,11 @@ io.on('connection', (socket) => {
       const room = activeRooms[roomCode];
       if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null || !room.currentPlayer || room.tradePhase) return;
       const user = room.users.find(u => u.id === socket.id);
+      
+      // --- THE FATAL CRASH FIX ---
+      // Blocks the undefined read that caused your server to crash on mobile dropouts
+      if (!user) return;
+
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
       let now = Date.now();
