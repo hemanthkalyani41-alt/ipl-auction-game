@@ -21,7 +21,6 @@
         body { 
             font-family: 'Rajdhani', sans-serif; 
             background-color: var(--bg-base); 
-            /* THE UPGRADE: Sleek Woven Carbon Fibre Texture */
             background-image: 
                 repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 6px),
                 repeating-linear-gradient(-45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 6px);
@@ -31,15 +30,12 @@
             transition: box-shadow 0.5s ease-in-out;
         }
 
-        /* THE UPGRADE: Smooth, non-chaotic Hype Pulse (No screen shaking) */
         @keyframes hypePulse {
             0% { box-shadow: inset 0 0 10px rgba(255, 0, 85, 0.1); }
             50% { box-shadow: inset 0 0 60px rgba(255, 0, 85, 0.5); }
             100% { box-shadow: inset 0 0 10px rgba(255, 0, 85, 0.1); }
         }
-        body.hype-active {
-            animation: hypePulse 1.2s infinite ease-in-out;
-        }
+        body.hype-active { animation: hypePulse 1.2s infinite ease-in-out; }
         .hype-btn { background: var(--neon-red) !important; color: #fff !important; box-shadow: 0 0 30px var(--neon-red) !important; text-shadow: 0 0 10px #fff; }
 
         h1, h2, h3, .timer, .c-bid, .orbitron { font-family: 'Orbitron', sans-serif; }
@@ -209,7 +205,6 @@
                 <option value="#b026ff" style="color:#b026ff;">Plasma Purple</option>
                 <option value="#00ff66" style="color:#00ff66;">Matrix Lime</option>
                 <option value="#ffcc00" style="color:#ffcc00;">Solar Gold</option>
-                <option value="#ff5500" style="color:#ff5500;">Blaze Orange</option>
                 <option value="#ffffff" style="color:#ffffff;">Pure Ice</option>
             </select>
         </div>
@@ -219,7 +214,7 @@
 
     <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">FORMAT</div>
     <select id="format-select">
-        <option value="All">ALL PLAYERS (120)</option>
+        <option value="All">ALL PLAYERS (122)</option>
         <option value="T20">T20 MEGA AUCTION</option>
         <option value="ODI">ODI DRAFT</option>
         <option value="Test">TEST CHAMPIONSHIP</option>
@@ -303,8 +298,10 @@
         </div>
         
         <div class="needs-grid" id="ai-needs">
-            <span class="need-badge alert" id="need-bat">BAT (0/3)</span>
-            <span class="need-badge alert" id="need-bowl">BOWL (0/3)</span>
+            <span class="need-badge alert" id="need-opn">OPN (0/2)</span>
+            <span class="need-badge alert" id="need-mid">MID (0/3)</span>
+            <span class="need-badge alert" id="need-pac">PAC (0/2)</span>
+            <span class="need-badge alert" id="need-spn">SPN (0/1)</span>
             <span class="need-badge alert" id="need-wk">WK (0/1)</span>
             <span class="need-badge alert" id="need-cap">CAP (0/1)</span>
         </div>
@@ -381,7 +378,7 @@
 
 <audio id="sfx-bid" src="https://actions.google.com/sounds/v1/ui/pop_up_on.ogg" preload="auto"></audio>
 <audio id="sfx-tick" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-<audio id="sfx-hype" src="https://actions.google.com/sounds/v1/alarms/spaceship_alarm.ogg" preload="auto"></audio>
+<audio id="sfx-hype" src="https://actions.google.com/sounds/v1/water/water_leak.ogg" preload="auto"></audio>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
@@ -439,8 +436,6 @@
 
     socket.on('roomCreated', d => { 
         room = d.code; isHost = true;
-        
-        // THE BUG FIX: Capture actual purse and display it
         initialPurse = d.purse;
         document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
         
@@ -462,12 +457,9 @@
 
     socket.on('roomJoined', d => { 
         room = d.code; 
-        
-        // THE BUG FIX: Sync the exact purse limit for joined players
         initialPurse = d.purse;
         document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
         
-        // THE BUG FIX: Sync the dynamic max rules to the Squad List immediately
         myRules = d.rules;
         document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
         document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
@@ -478,7 +470,6 @@
     });
 
     socket.on('rulesUpdated', rules => { 
-        // THE BUG FIX: Catch host updates mid-game
         myRules = rules; 
         document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
         document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
@@ -514,7 +505,8 @@
             
             list.forEach(p => { if(captainList.includes(p.name)) p.role = "Captain"; });
             
-            const roles = ['Captain', 'Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'];
+            // THE FIX: RESTORED THE CORRECT CATEGORIES FOR THE DROPDOWN
+            const roles = ['Captain', 'Opener', 'Middle Order', 'Wicketkeeper', 'All-Rounder', 'Pacer', 'Spinner'];
             roles.forEach(role => {
                 const playersInRole = list.filter(p => p.role === role);
                 if (playersInRole.length > 0) {
@@ -580,11 +572,14 @@
         document.getElementById('c-bid').innerText = d.player.basePrice.toFixed(1);
         
         let tvStats = ""; let rate = currentHiddenRating;
-        if(d.player.role === 'Batsman') tvStats = `🔥 ${Math.floor(rate * 45)} IPL Runs | ⚡ Strike Rate: ${Math.floor(rate * 1.5)} | 💥 High Score: ${Math.floor(rate * 1.3)}`;
-        else if(d.player.role === 'Bowler') tvStats = `🎯 ${Math.floor(rate * 1.8)} Wickets | 📉 Economy: ${(rate > 90 ? 6.5 : 7.8)} | 🏏 Best: ${Math.floor(rate / 20)}/${Math.floor(rate / 3)}`;
+        if(d.player.role === 'Opener') tvStats = `🔥 ${Math.floor(rate * 40)} Powerplay Runs | ⚡ Strike Rate: ${Math.floor(rate * 1.55)}`;
+        else if(d.player.role === 'Middle Order') tvStats = `🎯 ${Math.floor(rate * 35)} Runs | 💥 Finish Rate: ${Math.floor(rate * 1.4)} | 🏏 Crisis Manager`;
+        else if(d.player.role === 'Pacer') tvStats = `🚀 Pace: 145kmph+ | 🎯 ${Math.floor(rate * 1.8)} Wickets | 📉 Economy: ${(rate > 90 ? 6.5 : 7.8)}`;
+        else if(d.player.role === 'Spinner') tvStats = `🌪️ Turn: Elite | 🎯 ${Math.floor(rate * 1.5)} Wickets | 📉 Economy: ${(rate > 90 ? 6.2 : 7.5)}`;
         else if(d.player.role === 'All-Rounder') tvStats = `🔥 ${Math.floor(rate * 30)} Runs | 🎯 ${Math.floor(rate * 1.2)} Wickets | 🏆 Match Winner`;
         else if(d.player.role === 'Captain') tvStats = `👑 Elite Leadership | 🏆 Multi-Format Winner | 🧠 Tactical Genius`;
         else tvStats = `🧤 ${Math.floor(rate * 1.1)} Dismissals | 🔥 ${Math.floor(rate * 35)} Runs | ⚡ Reflexes: Elite`;
+        
         document.getElementById('p-ticker').innerText = `▶ BROADCAST FEED: ${d.player.name} — ${tvStats} ◀`;
 
         const cBidder = document.getElementById('c-bidder');
@@ -670,13 +665,16 @@
             document.getElementById('squad-count').innerText = me.squad.length;
             document.getElementById('os-count').innerText = me.squad.filter(p => p.country !== 'India').length;
             
-            let bats=0, bowls=0, wks=0, caps=0;
+            let opn=0, mid=0, pac=0, spn=0, wks=0, caps=0;
             me.squad.forEach(p => {
                 let r = captainList.includes(p.name) ? 'Captain' : p.role;
-                if(r === 'Batsman' || r === 'All-Rounder') bats++; 
-                if(r === 'Bowler' || r === 'All-Rounder') bowls++;
-                if(r === 'Wicketkeeper') wks++;
                 if(r === 'Captain') caps++;
+                if(p.role === 'Opener') opn++;
+                if(p.role === 'Middle Order') mid++;
+                if(p.role === 'Wicketkeeper') wks++;
+                if(p.role === 'Pacer') pac++;
+                if(p.role === 'Spinner') spn++;
+                if(p.role === 'All-Rounder') { mid++; pac++; spn++; } 
             });
             
             const updateBadge = (id, count, req) => {
@@ -684,7 +682,8 @@
                 el.innerText = `${id.replace('need-','').toUpperCase()} (${count}/${req})`;
                 if(count >= req) { el.classList.remove('alert'); el.classList.add('filled'); }
             };
-            updateBadge('need-bat', bats, 3); updateBadge('need-bowl', bowls, 3);
+            updateBadge('need-opn', opn, 2); updateBadge('need-mid', mid, 3);
+            updateBadge('need-pac', pac, 2); updateBadge('need-spn', spn, 1);
             updateBadge('need-wk', wks, 1); updateBadge('need-cap', caps, 1);
 
             const list = document.getElementById('my-squad-list');
