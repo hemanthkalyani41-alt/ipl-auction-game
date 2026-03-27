@@ -131,7 +131,7 @@
             transition: 0.1s; font-family: 'Orbitron';
         }
         .bid-btn:active { transform: scale(0.97); background: #fff; box-shadow: 0 0 30px #fff; }
-        .bid-btn.disabled { background: #333; color: #666; box-shadow: none; pointer-events: none; }
+        .bid-btn.disabled { background: #333 !important; color: #666 !important; box-shadow: none !important; pointer-events: none; cursor: not-allowed; }
 
         .host-panel { background: rgba(255, 0, 85, 0.05); padding: 10px; display: flex; gap: 8px; margin-bottom: 15px; justify-content: center; border: 1px solid rgba(255, 0, 85, 0.3); flex-wrap: wrap; }
         .host-panel button { flex: 1; font-size: 0.8em; padding: 10px; margin: 0; background: #111; color: var(--text-main); border: 1px solid #444; font-family: 'Rajdhani'; font-weight: 700; text-transform: uppercase; cursor: pointer;}
@@ -222,13 +222,14 @@
     
     <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">STARTING PURSE (CR)</div>
     <input type="number" id="purse-input" value="100">
-    <button onclick="createGame()" style="width:100%; background:var(--ui-accent); padding:15px; font-family:'Orbitron'; font-weight:900; color:#fff; border:none; cursor: pointer; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);">INITIALIZE SERVER</button>
+    
+    <button id="init-btn" class="disabled" onclick="createGame()" style="width:100%; padding:15px; font-family:'Orbitron'; font-weight:900; border:none; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);" disabled>CONNECTING TO SERVER...</button>
     
     <div style="text-align: center; margin: 25px 0; color: #444; font-family:'Orbitron';">— OR CONNECT —</div>
     
     <div style="display:flex; gap:10px;">
         <input type="text" id="join-input" placeholder="ENTER ROOM CODE" style="margin:0;">
-        <button onclick="joinGame()" style="width:100px; background:var(--text-main); color:#000; margin:0; border:none; font-family:'Orbitron'; font-weight:900; cursor:pointer;">JOIN</button>
+        <button id="join-btn" class="disabled" onclick="joinGame()" style="width:100px; margin:0; border:none; font-family:'Orbitron'; font-weight:900;" disabled>WAIT...</button>
     </div>
 </div>
 
@@ -376,22 +377,38 @@
     <button onclick="location.reload()" style="width:100%; margin-top:20px; background:var(--ui-accent); color:#fff; padding: 15px; border:none; font-family:'Orbitron'; font-weight:900; font-size: 1.2em; cursor:pointer; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);">INITIALIZE NEW MATCH</button>
 </div>
 
-<script>
-    window.addEventListener('load', () => {
-        const socket = io();
-        window.socket = socket; // Make global for the main script block
-        
-        socket.on('connect', () => {
-            // If the user drops connection and reconnects, automatically reclaim their session
-            if (window.roomCodeCache && window.roomCodeCache !== "") {
-                socket.emit('joinRoom', { roomCode: window.roomCodeCache, teamName: document.getElementById('team-name').value, teamColor: document.getElementById('team-color').value });
-            }
-        });
-    });
-</script>
+<audio id="sfx-bid" src="https://actions.google.com/sounds/v1/ui/pop_up_on.ogg" preload="auto"></audio>
+<audio id="sfx-tick" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+<audio id="sfx-hype" src="https://actions.google.com/sounds/v1/water/water_leak.ogg" preload="auto"></audio>
 
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
     const socket = io();
+    
+    // --- THE SERVER HANDSHAKE LOCK ---
+    socket.on('connect', () => {
+        const iBtn = document.getElementById('init-btn');
+        if(iBtn) {
+            iBtn.disabled = false; iBtn.innerText = "INITIALIZE SERVER";
+            iBtn.style.background = "var(--ui-accent)"; iBtn.style.color = "#fff";
+            iBtn.style.cursor = "pointer"; iBtn.classList.remove('disabled');
+        }
+        const jBtn = document.getElementById('join-btn');
+        if(jBtn) {
+            jBtn.disabled = false; jBtn.innerText = "JOIN";
+            jBtn.style.background = "var(--text-main)"; jBtn.style.color = "#000";
+            jBtn.style.cursor = "pointer"; jBtn.classList.remove('disabled');
+        }
+    });
+
+    socket.on('disconnect', () => {
+        const iBtn = document.getElementById('init-btn');
+        if(iBtn) {
+            iBtn.disabled = true; iBtn.innerText = "CONNECTION LOST...";
+            iBtn.style.background = "#333"; iBtn.classList.add('disabled');
+        }
+    });
+
     let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
     let myRules = { maxSquad: 15, maxOverseas: 4 };
     let mySquadData = [];
@@ -408,6 +425,17 @@
             window.speechSynthesis.speak(utterance);
         }
     }
+
+    function unlockAudio() {
+        ['sfx-bid', 'sfx-tick', 'sfx-hype'].forEach(id => {
+            let el = document.getElementById(id);
+            el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+        });
+        document.body.removeEventListener('click', unlockAudio);
+        document.body.removeEventListener('touchstart', unlockAudio);
+    }
+    document.body.addEventListener('click', unlockAudio);
+    document.body.addEventListener('touchstart', unlockAudio);
 
     function playSfx(id) { 
         const a = document.getElementById(id); a.currentTime = 0; a.play().catch(() => {});
@@ -433,7 +461,7 @@
     }
 
     socket.on('roomCreated', d => { 
-        room = d.code; window.roomCodeCache = room; isHost = true;
+        room = d.code; isHost = true;
         initialPurse = d.purse;
         document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
         
@@ -454,7 +482,7 @@
     }
 
     socket.on('roomJoined', d => { 
-        room = d.code; window.roomCodeCache = room;
+        room = d.code; 
         initialPurse = d.purse;
         document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
         
@@ -618,6 +646,7 @@
 
         const btn = document.getElementById('bid-btn');
         if (d.hypeMode) {
+            if(!document.body.classList.contains('hype-active')) { playSfx('sfx-hype'); }
             document.body.classList.add('hype-active');
             btn.classList.add('hype-btn');
             btn.innerText = "HYPE BIDS (+1.0 CR) 🔥";
