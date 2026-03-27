@@ -45,7 +45,6 @@ function startTimer(roomCode, isResume = false) {
         if (room.timeLeft <= 0) { 
             clearInterval(room.timerInterval); 
             room.timerInterval = null;
-            // FATAL CRASH FIX: Ensure currentPlayer exists before selling
             if(room && !room.isSelling && !room.tradePhase && !room.build11Phase && room.currentPlayer) {
                 sellPlayer(roomCode); 
             }
@@ -55,7 +54,6 @@ function startTimer(roomCode, isResume = false) {
 
 function sellPlayer(roomCode) {
     const room = activeRooms[roomCode];
-    // FATAL CRASH FIX: Abort if no player is on the block
     if(!room || room.tradePhase || room.build11Phase || !room.currentPlayer) return; 
     
     room.isSelling = true; 
@@ -66,8 +64,6 @@ function sellPlayer(roomCode) {
         const winner = room.users.find(u => u.id === room.highestBidder.id);
         if(winner) { 
             winner.purseRemaining -= room.currentBid; 
-            
-            // Cleanly construct the player object to prevent null reference errors
             const soldPlayer = {
                 name: room.currentPlayer.name,
                 role: room.currentPlayer.role,
@@ -106,7 +102,7 @@ function startTradePhase(roomCode) {
     room.auctionStarted = false;
     room.tradePhase = true;
     room.isSelling = false; 
-    room.currentPlayer = null; // Clear block to prevent ghost sells
+    room.currentPlayer = null; 
     io.to(roomCode).emit('tradePhaseStarted', room.users);
 }
 
@@ -124,19 +120,35 @@ function calculateAIRating(playingXI) {
     let avg = playingXI.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / playingXI.length;
     let score = avg / 10; 
     
-    let roles = { 'Batsman':0, 'Bowler':0, 'All-Rounder':0, 'Wicketkeeper':0, 'Captain':0 };
+    // RESTORED: Advanced Role Analysis
+    let roles = { 'Opener':0, 'Middle Order':0, 'Pacer':0, 'Spinner':0, 'All-Rounder':0, 'Wicketkeeper':0, 'Captain':0 };
     let overseas = 0;
 
     playingXI.forEach(p => { 
         let r = p.role;
         if(p.name && captainList.includes(p.name)) r = 'Captain';
         roles[r] = (roles[r] || 0) + 1; 
+        
+        // Captains cover secondary roles for balancing
+        if(r === 'Captain') {
+            if(["Rohit Sharma", "Shubman Gill", "KL Rahul", "Babar Azam"].includes(p.name)) roles['Opener']++;
+            if(["Virat Kohli", "Shreyas Iyer", "Kane Williamson"].includes(p.name)) roles['Middle Order']++;
+            if(["Pat Cummins"].includes(p.name)) roles['Pacer']++;
+            if(["MS Dhoni", "Sanju Samson"].includes(p.name)) roles['Wicketkeeper']++;
+        }
         if(p.country !== 'India') overseas++;
     });
     
+    // Strict Penalties
     if(roles['Wicketkeeper'] === 0) score -= 1.5;
-    let bowlingOptions = roles['Bowler'] + roles['All-Rounder'];
+    if(roles['Opener'] < 2) score -= 1.0;
+    if(roles['Middle Order'] < 3) score -= 0.5;
+    if(roles['Pacer'] < 2) score -= 1.0;
+    if(roles['Spinner'] === 0) score -= 1.0;
+    
+    let bowlingOptions = roles['Pacer'] + roles['Spinner'] + roles['All-Rounder'];
     if(bowlingOptions < 5) score -= 1.5; 
+    
     if(roles['Captain'] === 0) score -= 0.5;
     if(overseas > 4) score -= 2.0; 
     if(playingXI.length < 11) score -= 2.0; 
@@ -185,7 +197,7 @@ io.on('connection', (socket) => {
 
     activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
     socket.join(roomCode);
-    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#00e5ff', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
+    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff003c', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
     socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
   });
 
@@ -194,7 +206,7 @@ io.on('connection', (socket) => {
     if (activeRooms[roomCode]) {
       socket.join(roomCode);
       const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
-      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#ff0055', purseRemaining: startMoney, squad: [], playing11: [] });
+      activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] });
       socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
     }
   });
@@ -281,7 +293,7 @@ io.on('connection', (socket) => {
       if (room && room.hostId === socket.id && !room.tradePhase && !room.build11Phase) {
           if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
           room.isSelling = false;
-          room.currentPlayer = null; // Clean up the block
+          room.currentPlayer = null; 
           startTradePhase(roomCode);
       }
   });
