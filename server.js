@@ -26,9 +26,14 @@ app.use(express.static(__dirname));
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
-const playersData = JSON.parse(fs.readFileSync('./players.json', 'utf8'));
-const activeRooms = {};
+let playersData = [];
+try {
+    playersData = JSON.parse(fs.readFileSync('./players.json', 'utf8'));
+} catch (err) {
+    console.error("FATAL ERROR: Your players.json file has a syntax error (likely a missing bracket or trailing comma). The server cannot read the players.", err);
+}
 
+const activeRooms = {};
 const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
 
 function startTimer(roomCode, isResume = false) {
@@ -188,42 +193,35 @@ async function finishGame(roomCode) {
 
 io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
-    const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-    let pool = (settings.format === 'All') ? playersData : playersData.filter(p => p.formats && p.formats.includes(settings.format));
-    let shuffled = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
-    
-    settings.startingPurse = parseFloat(settings.startingPurse) || 100;
-    settings.maxSquad = 15;
-    settings.maxOverseas = 4;
+    try {
+        const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+        let pool = (settings.format === 'All') ? playersData : playersData.filter(p => p.formats && p.formats.includes(settings.format));
+        let shuffled = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
+        
+        settings.startingPurse = parseFloat(settings.startingPurse) || 100;
+        settings.maxSquad = 15;
+        settings.maxOverseas = 4;
 
-    activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
-    socket.join(roomCode);
-    activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff003c', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
-    socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
+        activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
+        socket.join(roomCode);
+        activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff003c', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
+        socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
+    } catch (err) {
+        console.error("Create Room Crash Prevented:", err);
+    }
   });
 
   socket.on('joinRoom', (data) => {
-    const roomCode = data.roomCode.toUpperCase();
-    if (activeRooms[roomCode]) {
-      socket.join(roomCode);
-      
-      // --- NEW: THE RECONNECTION ENGINE ---
-      let existingUser = activeRooms[roomCode].users.find(u => u.name === data.teamName);
-      
-      if (existingUser) {
-          // If the disconnected user was the Host, restore their Host privileges
-          if (activeRooms[roomCode].hostId === existingUser.id) {
-              activeRooms[roomCode].hostId = socket.id;
-          }
-          // Update their socket fingerprint and let them back into the game
-          existingUser.id = socket.id;
-          socket.emit('roomJoined', { code: roomCode, purse: existingUser.purseRemaining, rules: activeRooms[roomCode].settings });
-      } else {
-          // Normal fresh join
+    try {
+        const roomCode = data.roomCode.toUpperCase();
+        if (activeRooms[roomCode]) {
+          socket.join(roomCode);
           const startMoney = parseFloat(activeRooms[roomCode].settings.startingPurse) || 100;
           activeRooms[roomCode].users.push({ id: socket.id, name: data.teamName || `Player ${activeRooms[roomCode].users.length + 1}`, color: data.teamColor || '#00e5ff', purseRemaining: startMoney, squad: [], playing11: [] });
           socket.emit('roomJoined', { code: roomCode, purse: startMoney, rules: activeRooms[roomCode].settings });
-      }
+        }
+    } catch (err) {
+        console.error("Join Room Crash Prevented:", err);
     }
   });
 
@@ -241,7 +239,6 @@ io.on('connection', (socket) => {
   socket.on('bringPlayerUp', (data) => {
       const room = activeRooms[data.roomCode];
       if (room && room.hostId === socket.id && !room.tradePhase && !room.build11Phase) {
-          
           if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
           room.isSelling = false; 
 
@@ -261,11 +258,7 @@ io.on('connection', (socket) => {
       const room = activeRooms[roomCode];
       if (!room || !room.auctionStarted || room.isSelling || room.timerInterval === null || !room.currentPlayer || room.tradePhase) return;
       const user = room.users.find(u => u.id === socket.id);
-      
-      // --- THE FATAL CRASH FIX ---
-      // Blocks the undefined read that caused your server to crash on mobile dropouts
       if (!user) return;
-
       if (room.highestBidder && room.highestBidder.id === socket.id) return;
       
       let now = Date.now();
