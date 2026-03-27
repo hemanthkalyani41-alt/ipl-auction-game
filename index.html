@@ -505,7 +505,6 @@
             
             list.forEach(p => { if(captainList.includes(p.name)) p.role = "Captain"; });
             
-            // THE FIX: RESTORED THE CORRECT CATEGORIES FOR THE DROPDOWN
             const roles = ['Captain', 'Opener', 'Middle Order', 'Wicketkeeper', 'All-Rounder', 'Pacer', 'Spinner'];
             roles.forEach(role => {
                 const playersInRole = list.filter(p => p.role === role);
@@ -538,6 +537,11 @@
             socket.emit('bringPlayerUp', { roomCode: room, playerName: selectedPlayer });
             this.disabled = true; 
             this.innerText = "TRANSMITTING...";
+            // UI FAILSAFE: If connection drops, unlock the button after 3 seconds
+            setTimeout(() => {
+                this.disabled = false;
+                this.innerText = "SEND TO BLOCK";
+            }, 3000);
         }
     };
 
