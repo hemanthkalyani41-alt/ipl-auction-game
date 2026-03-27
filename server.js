@@ -60,24 +60,28 @@ function sellPlayer(roomCode) {
     room.bidTimestamps = []; 
     if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
 
-    if (room.highestBidder) {
-        const winner = room.users.find(u => u.id === room.highestBidder.id);
-        if(winner) { 
-            winner.purseRemaining -= room.currentBid; 
-            const soldPlayer = {
-                name: room.currentPlayer.name,
-                role: room.currentPlayer.role,
-                country: room.currentPlayer.country,
-                basePrice: room.currentPlayer.basePrice,
-                hiddenRating: room.currentPlayer.hiddenRating,
-                jerseyNumber: room.currentPlayer.jerseyNumber,
-                soldPrice: room.currentBid
-            };
-            winner.squad.push(soldPlayer); 
+    try {
+        if (room.highestBidder) {
+            const winner = room.users.find(u => u.id === room.highestBidder.id);
+            if(winner) { 
+                winner.purseRemaining -= room.currentBid; 
+                const soldPlayer = {
+                    name: room.currentPlayer.name,
+                    role: room.currentPlayer.role,
+                    country: room.currentPlayer.country,
+                    basePrice: room.currentPlayer.basePrice,
+                    hiddenRating: room.currentPlayer.hiddenRating,
+                    jerseyNumber: room.currentPlayer.jerseyNumber,
+                    soldPrice: room.currentBid
+                };
+                winner.squad.push(soldPlayer); 
+            }
+            io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', winnerColor: winner ? winner.color : '#fff', amount: room.currentBid, users: room.users });
+        } else { 
+            io.to(roomCode).emit('playerUnsold'); 
         }
-        io.to(roomCode).emit('playerSold', { winnerName: winner ? winner.name : 'Unknown', winnerColor: winner ? winner.color : '#fff', amount: room.currentBid, users: room.users });
-    } else { 
-        io.to(roomCode).emit('playerUnsold'); 
+    } catch (err) {
+        console.error("Sell Player Error:", err);
     }
     
     setTimeout(() => { promptHostForNextPlayer(roomCode); }, 3500);
@@ -120,7 +124,6 @@ function calculateAIRating(playingXI) {
     let avg = playingXI.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / playingXI.length;
     let score = avg / 10; 
     
-    // RESTORED: Advanced Role Analysis
     let roles = { 'Opener':0, 'Middle Order':0, 'Pacer':0, 'Spinner':0, 'All-Rounder':0, 'Wicketkeeper':0, 'Captain':0 };
     let overseas = 0;
 
@@ -129,7 +132,6 @@ function calculateAIRating(playingXI) {
         if(p.name && captainList.includes(p.name)) r = 'Captain';
         roles[r] = (roles[r] || 0) + 1; 
         
-        // Captains cover secondary roles for balancing
         if(r === 'Captain') {
             if(["Rohit Sharma", "Shubman Gill", "KL Rahul", "Babar Azam"].includes(p.name)) roles['Opener']++;
             if(["Virat Kohli", "Shreyas Iyer", "Kane Williamson"].includes(p.name)) roles['Middle Order']++;
@@ -139,7 +141,6 @@ function calculateAIRating(playingXI) {
         if(p.country !== 'India') overseas++;
     });
     
-    // Strict Penalties
     if(roles['Wicketkeeper'] === 0) score -= 1.5;
     if(roles['Opener'] < 2) score -= 1.0;
     if(roles['Middle Order'] < 3) score -= 0.5;
@@ -224,7 +225,13 @@ io.on('connection', (socket) => {
 
   socket.on('bringPlayerUp', (data) => {
       const room = activeRooms[data.roomCode];
-      if (room && room.hostId === socket.id && !room.currentPlayer && !room.isSelling && !room.tradePhase && !room.build11Phase) {
+      // HOST OVERRIDE FIX: Removed the restrictive lock conditions. 
+      // If the Host clicks a player, the server forces the game loop to unlock and obey.
+      if (room && room.hostId === socket.id && !room.tradePhase && !room.build11Phase) {
+          
+          if (room.timerInterval) { clearInterval(room.timerInterval); room.timerInterval = null; }
+          room.isSelling = false; // Force unlock the deadlock
+
           const pIndex = room.availablePlayers.findIndex(p => p.name === data.playerName);
           if (pIndex !== -1) {
               room.currentPlayer = room.availablePlayers.splice(pIndex, 1)[0];
