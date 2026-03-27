@@ -205,6 +205,7 @@
                 <option value="#b026ff" style="color:#b026ff;">Plasma Purple</option>
                 <option value="#00ff66" style="color:#00ff66;">Matrix Lime</option>
                 <option value="#ffcc00" style="color:#ffcc00;">Solar Gold</option>
+                <option value="#ff5500" style="color:#ff5500;">Blaze Orange</option>
                 <option value="#ffffff" style="color:#ffffff;">Pure Ice</option>
             </select>
         </div>
@@ -381,561 +382,571 @@
 <audio id="sfx-tick" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 <audio id="sfx-hype" src="https://actions.google.com/sounds/v1/water/water_leak.ogg" preload="auto"></audio>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    const socket = io();
-    
-    // --- THE SERVER HANDSHAKE LOCK ---
-    socket.on('connect', () => {
-        const iBtn = document.getElementById('init-btn');
-        if(iBtn) {
-            iBtn.disabled = false; iBtn.innerText = "INITIALIZE SERVER";
-            iBtn.style.background = "var(--ui-accent)"; iBtn.style.color = "#fff";
-            iBtn.style.cursor = "pointer"; iBtn.classList.remove('disabled');
-        }
-        const jBtn = document.getElementById('join-btn');
-        if(jBtn) {
-            jBtn.disabled = false; jBtn.innerText = "JOIN";
-            jBtn.style.background = "var(--text-main)"; jBtn.style.color = "#000";
-            jBtn.style.cursor = "pointer"; jBtn.classList.remove('disabled');
-        }
-    });
+    window.addEventListener('load', () => {
+        const socket = io();
+        window.socket = socket; 
+        
+        socket.on('connect', () => {
+            const iBtn = document.getElementById('init-btn');
+            if(iBtn) {
+                iBtn.disabled = false; iBtn.innerText = "INITIALIZE SERVER";
+                iBtn.style.background = "var(--ui-accent)"; iBtn.style.color = "#fff";
+                iBtn.style.cursor = "pointer"; iBtn.classList.remove('disabled');
+            }
+            const jBtn = document.getElementById('join-btn');
+            if(jBtn) {
+                jBtn.disabled = false; jBtn.innerText = "JOIN";
+                jBtn.style.background = "var(--text-main)"; jBtn.style.color = "#000";
+                jBtn.style.cursor = "pointer"; jBtn.classList.remove('disabled');
+            }
 
-    socket.on('disconnect', () => {
-        const iBtn = document.getElementById('init-btn');
-        if(iBtn) {
-            iBtn.disabled = true; iBtn.innerText = "CONNECTION LOST...";
-            iBtn.style.background = "#333"; iBtn.classList.add('disabled');
-        }
-    });
-
-    let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
-    let myRules = { maxSquad: 15, maxOverseas: 4 };
-    let mySquadData = [];
-    let myColor = "#ff003c";
-    let allUsersCache = [];
-    let selectedXI = []; 
-
-    const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
-
-    function speakAuction(text) {
-        if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.15; utterance.pitch = 0.9; 
-            window.speechSynthesis.speak(utterance);
-        }
-    }
-
-    function unlockAudio() {
-        ['sfx-bid', 'sfx-tick', 'sfx-hype'].forEach(id => {
-            let el = document.getElementById(id);
-            el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+            if (window.roomCodeCache && window.roomCodeCache !== "") {
+                socket.emit('joinRoom', { roomCode: window.roomCodeCache, teamName: document.getElementById('team-name').value, teamColor: document.getElementById('team-color').value });
+            }
         });
-        document.body.removeEventListener('click', unlockAudio);
-        document.body.removeEventListener('touchstart', unlockAudio);
-    }
-    document.body.addEventListener('click', unlockAudio);
-    document.body.addEventListener('touchstart', unlockAudio);
 
-    function playSfx(id) { 
-        const a = document.getElementById(id); a.currentTime = 0; a.play().catch(() => {});
-    }
-
-    function toggleSpy() { document.getElementById('spy-menu').classList.toggle('active'); }
-
-    function getFranchiseData() { 
-        myColor = document.getElementById('team-color').value;
-        document.documentElement.style.setProperty('--ui-accent', myColor);
-        return { name: document.getElementById('team-name').value || 'Unknown', color: myColor }; 
-    }
-
-    function createGame() {
-        initialPurse = parseFloat(document.getElementById('purse-input').value) || 100;
-        const brand = getFranchiseData();
-        socket.emit('createRoom', { startingPurse: initialPurse, format: document.getElementById('format-select').value, teamName: brand.name, teamColor: brand.color });
-    }
-
-    function joinGame() { 
-        const brand = getFranchiseData();
-        socket.emit('joinRoom', { roomCode: document.getElementById('join-input').value.toUpperCase(), teamName: brand.name, teamColor: brand.color }); 
-    }
-
-    socket.on('roomCreated', d => { 
-        room = d.code; isHost = true;
-        initialPurse = d.purse;
-        document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
-        
-        document.getElementById('home-screen').classList.add('hidden'); 
-        document.getElementById('settings-screen').classList.remove('hidden');
-        document.getElementById('display-room-code').innerText = room;
-        document.getElementById('nav-code').innerText = room; 
-    });
-
-    function saveAndStart() {
-        document.getElementById('settings-screen').classList.add('hidden');
-        document.getElementById('auction-screen').classList.remove('hidden');
-        document.getElementById('host-controls').classList.remove('hidden');
-        
-        myRules.maxSquad = parseInt(document.getElementById('max-squad').value);
-        myRules.maxOverseas = parseInt(document.getElementById('max-os').value);
-        socket.emit('updateRulesAndStart', { roomCode: room, maxSquad: myRules.maxSquad, maxOverseas: myRules.maxOverseas });
-    }
-
-    socket.on('roomJoined', d => { 
-        room = d.code; 
-        initialPurse = d.purse;
-        document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
-        
-        myRules = d.rules;
-        document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
-        document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
-        
-        document.getElementById('home-screen').classList.add('hidden'); 
-        document.getElementById('auction-screen').classList.remove('hidden');
-        document.getElementById('nav-code').innerText = room; 
-    });
-
-    socket.on('rulesUpdated', rules => { 
-        myRules = rules; 
-        document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
-        document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
-    });
-
-    socket.on('waitingForNextPlayer', list => {
-        document.getElementById('main-player-card').classList.remove('legendary');
-        document.body.classList.remove('hype-active');
-        document.getElementById('bid-btn').classList.remove('hype-btn');
-        
-        document.getElementById('p-name').innerText = "SYSTEM STANDBY";
-        document.getElementById('p-name').style.color = "#fff";
-        document.getElementById('p-info').innerText = "Awaiting Host Selection...";
-        document.getElementById('p-base').innerText = "0.0";
-        document.getElementById('p-jersey').innerText = "--";
-        document.getElementById('c-bid').innerText = "0.0";
-        document.getElementById('c-bidder').innerText = "None";
-        document.getElementById('c-bidder').style.color = "#fff";
-        document.getElementById('c-bidder').style.textShadow = "none";
-        document.getElementById('timer').innerText = "--";
-        document.getElementById('p-ticker').innerText = "SYSTEM STANDBY...";
-        
-        document.getElementById('scout-tag').innerText = "IDLE";
-        document.getElementById('scout-tag').style.background = "#555";
-        document.getElementById('scout-msg').innerText = "Processing deck...";
-
-        document.getElementById('bid-btn').classList.add('disabled');
-        document.getElementById('bid-btn').innerText = "STANDBY";
-
-        if (isHost) {
-            const dropdown = document.getElementById('next-player-dropdown');
-            dropdown.innerHTML = '';
-            
-            list.forEach(p => { if(captainList.includes(p.name)) p.role = "Captain"; });
-            
-            const roles = ['Captain', 'Opener', 'Middle Order', 'Wicketkeeper', 'All-Rounder', 'Pacer', 'Spinner'];
-            roles.forEach(role => {
-                const playersInRole = list.filter(p => p.role === role);
-                if (playersInRole.length > 0) {
-                    const group = document.createElement('optgroup');
-                    group.label = `${role}s (${playersInRole.length})`;
-                    playersInRole.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p.name;
-                        opt.innerText = `${p.name} (₹${p.basePrice}Cr)`;
-                        group.appendChild(opt);
-                    });
-                    dropdown.appendChild(group);
-                }
-            });
-            
-            document.getElementById('host-selection-panel').classList.remove('hidden');
-            document.getElementById('pause-btn').classList.add('hidden');
-            document.getElementById('undo-btn').classList.add('hidden');
-
-            const blockBtn = document.getElementById('send-to-block-btn');
-            blockBtn.disabled = false;
-            blockBtn.innerText = "SEND TO BLOCK";
-        }
-    });
-
-    document.getElementById('send-to-block-btn').onclick = function() {
-        const selectedPlayer = document.getElementById('next-player-dropdown').value;
-        if(selectedPlayer) {
-            socket.emit('bringPlayerUp', { roomCode: room, playerName: selectedPlayer });
-            this.disabled = true; 
-            this.innerText = "TRANSMITTING...";
-            setTimeout(() => { this.disabled = false; this.innerText = "SEND TO BLOCK"; }, 3000);
-        }
-    };
-
-    let currentIsOverseas = false;
-    socket.on('newPlayerUp', d => {
-        currentHiddenRating = d.player.hiddenRating;
-        currentIsOverseas = d.player.country !== 'India'; 
-        if(captainList.includes(d.player.name)) d.player.role = "Captain"; 
-
-        document.body.classList.remove('hype-active');
-        document.getElementById('bid-btn').classList.remove('hype-btn');
-
-        const card = document.getElementById('main-player-card');
-        const pName = document.getElementById('p-name');
-        
-        if (currentHiddenRating >= 95) {
-            card.classList.add('legendary');
-            speakAuction(`Warning. Franchise Player Detected. ${d.player.name} is on the block.`);
-        } else {
-            card.classList.remove('legendary');
-            pName.style.color = "#fff";
-            pName.style.textShadow = "none";
-            speakAuction(`${d.player.name} is up.`);
-        }
-
-        const osIcon = currentIsOverseas ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="var(--ui-accent)" style="vertical-align: middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>` : '';
-
-        pName.innerText = d.player.name;
-        document.getElementById('p-jersey').innerText = d.player.jerseyNumber || "00";
-        document.getElementById('p-base').innerText = d.player.basePrice.toFixed(1);
-        document.getElementById('p-info').innerHTML = `${d.player.role} | ${d.player.country} ${osIcon}`;
-        document.getElementById('c-bid').innerText = d.player.basePrice.toFixed(1);
-        
-        let tvStats = ""; let rate = currentHiddenRating;
-        if(d.player.role === 'Opener') tvStats = `🔥 ${Math.floor(rate * 40)} Powerplay Runs | ⚡ Strike Rate: ${Math.floor(rate * 1.55)}`;
-        else if(d.player.role === 'Middle Order') tvStats = `🎯 ${Math.floor(rate * 35)} Runs | 💥 Finish Rate: ${Math.floor(rate * 1.4)} | 🏏 Crisis Manager`;
-        else if(d.player.role === 'Pacer') tvStats = `🚀 Pace: 145kmph+ | 🎯 ${Math.floor(rate * 1.8)} Wickets | 📉 Economy: ${(rate > 90 ? 6.5 : 7.8)}`;
-        else if(d.player.role === 'Spinner') tvStats = `🌪️ Turn: Elite | 🎯 ${Math.floor(rate * 1.5)} Wickets | 📉 Economy: ${(rate > 90 ? 6.2 : 7.5)}`;
-        else if(d.player.role === 'All-Rounder') tvStats = `🔥 ${Math.floor(rate * 30)} Runs | 🎯 ${Math.floor(rate * 1.2)} Wickets | 🏆 Match Winner`;
-        else if(d.player.role === 'Captain') tvStats = `👑 Elite Leadership | 🏆 Multi-Format Winner | 🧠 Tactical Genius`;
-        else tvStats = `🧤 ${Math.floor(rate * 1.1)} Dismissals | 🔥 ${Math.floor(rate * 35)} Runs | ⚡ Reflexes: Elite`;
-        
-        document.getElementById('p-ticker').innerText = `▶ BROADCAST FEED: ${d.player.name} — ${tvStats} ◀`;
-
-        const cBidder = document.getElementById('c-bidder');
-        cBidder.innerText = "None";
-        cBidder.style.color = "#fff";
-        cBidder.style.textShadow = "none";
-        
-        document.getElementById('timer').style.color = "var(--neon-red)";
-        document.getElementById('scout-tag').innerText = "ACTIVE";
-        document.getElementById('scout-tag').style.background = "var(--ui-accent)";
-        document.getElementById('scout-msg').innerText = "Target acquired. Awaiting bids...";
-
-        document.getElementById('bid-btn').classList.remove('disabled');
-        document.getElementById('bid-btn').innerText = "TRANSMIT BID";
-        
-        if(isHost) { 
-            document.getElementById('host-selection-panel').classList.add('hidden');
-            document.getElementById('resume-btn').classList.add('hidden'); 
-            document.getElementById('pause-btn').classList.remove('hidden'); 
-            document.getElementById('undo-btn').classList.remove('hidden');
-        }
-    });
-
-    document.getElementById('bid-btn').onclick = () => { 
-        if (document.getElementById('bid-btn').classList.contains('disabled')) return;
-        socket.emit('placeBid', room); 
-    };
-
-    socket.on('bidUpdated', d => {
-        document.getElementById('c-bid').innerText = d.bidAmount.toFixed(1);
-        
-        const bidderText = document.getElementById('c-bidder');
-        bidderText.innerText = d.bidderName;
-        bidderText.style.color = d.bidderColor;
-        bidderText.style.textShadow = `0 0 10px ${d.bidderColor}`;
-        
-        playSfx('sfx-bid');
-
-        const btn = document.getElementById('bid-btn');
-        if (d.hypeMode) {
-            if(!document.body.classList.contains('hype-active')) { playSfx('sfx-hype'); }
-            document.body.classList.add('hype-active');
-            btn.classList.add('hype-btn');
-            btn.innerText = "HYPE BIDS (+1.0 CR) 🔥";
-            document.getElementById('scout-tag').innerText = "HYPE TRAIN";
-            document.getElementById('scout-tag').style.background = "var(--neon-red)";
-            document.getElementById('scout-msg').innerText = "Bidding velocity critical!";
-        } else {
-            document.body.classList.remove('hype-active');
-            btn.classList.remove('hype-btn');
-            btn.innerText = "TRANSMIT BID";
-            
-            const valueRatio = (d.bidAmount * 10) / currentHiddenRating; 
-            const scoutTag = document.getElementById('scout-tag');
-            const scoutMsg = document.getElementById('scout-msg');
-            if(valueRatio < 0.5) { scoutTag.innerText = "STEAL"; scoutTag.style.background = "var(--safe-green)"; scoutMsg.innerText = "High value target."; }
-            else if(valueRatio < 1.2) { scoutTag.innerText = "FAIR"; scoutTag.style.background = "var(--gold)"; scoutMsg.innerText = "Market value approaching."; }
-            else { scoutTag.innerText = "OVERPAID"; scoutTag.style.background = "var(--neon-red)"; scoutMsg.innerText = "Warning: Critical fund drain detected!"; }
-        }
-    });
-
-    socket.on('timerUpdate', t => {
-        document.getElementById('timer').innerText = t;
-        if(t <= 5 && t > 0) { playSfx('sfx-tick'); document.getElementById('timer').style.color = "var(--gold)"; }
-    });
-
-    socket.on('playerSold', d => {
-        speakAuction(`Sold to ${d.winnerName} for ${d.amount.toFixed(1)} Crores.`); 
-        document.body.classList.remove('hype-active');
-        
-        const me = d.users.find(u => u.id === socket.id);
-        
-        if(me && me.name === d.winnerName) {
-            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: [d.winnerColor, '#ffffff'] });
-        }
-
-        if(me) {
-            mySquadData = me.squad; 
-            const perc = (me.purseRemaining / initialPurse) * 100;
-            document.getElementById('purse-bar').style.width = perc + "%";
-            document.getElementById('nav-purse').innerText = me.purseRemaining.toFixed(1);
-
-            document.getElementById('squad-count').innerText = me.squad.length;
-            document.getElementById('os-count').innerText = me.squad.filter(p => p.country !== 'India').length;
-            
-            let opn=0, mid=0, pac=0, spn=0, wks=0, caps=0;
-            me.squad.forEach(p => {
-                let r = captainList.includes(p.name) ? 'Captain' : p.role;
-                if(r === 'Captain') caps++;
-                if(p.role === 'Opener') opn++;
-                if(p.role === 'Middle Order') mid++;
-                if(p.role === 'Wicketkeeper') wks++;
-                if(p.role === 'Pacer') pac++;
-                if(p.role === 'Spinner') spn++;
-                if(p.role === 'All-Rounder') { mid++; pac++; spn++; } 
-            });
-            
-            const updateBadge = (id, count, req) => {
-                const el = document.getElementById(id);
-                el.innerText = `${id.replace('need-','').toUpperCase()} (${count}/${req})`;
-                if(count >= req) { el.classList.remove('alert'); el.classList.add('filled'); }
-            };
-            updateBadge('need-opn', opn, 2); updateBadge('need-mid', mid, 3);
-            updateBadge('need-pac', pac, 2); updateBadge('need-spn', spn, 1);
-            updateBadge('need-wk', wks, 1); updateBadge('need-cap', caps, 1);
-
-            const list = document.getElementById('my-squad-list');
-            list.innerHTML = '';
-            me.squad.forEach(p => {
-                let flag = p.country !== 'India' ? `<span style="color:var(--ui-accent); font-size: 0.8em;">[INT]</span>` : '';
-                let finalPrice = (p.soldPrice !== undefined) ? p.soldPrice : p.basePrice;
-                list.innerHTML += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span><span style="color:#555">#${p.jerseyNumber}</span> ${p.name} ${flag}</span><span style="color:var(--gold); font-family:'Orbitron'; font-weight:700;">₹${finalPrice.toFixed(1)}Cr</span></li>`;
-            });
-        }
-
-        const spyList = document.getElementById('spy-list');
-        spyList.innerHTML = '';
-        d.users.forEach(u => {
-            spyList.innerHTML += `
-                <div style="background: rgba(0,0,0,0.4); border: 1px solid #222; padding:12px; margin-bottom: 8px; border-left: 3px solid ${u.color};">
-                    <div style="color:${u.color}; font-family:'Orbitron'; font-weight:700; font-size: 1.1em; display:flex; justify-content:space-between; text-shadow: 0 0 5px ${u.color};">
-                        ${u.name} <span style="color:var(--gold); text-shadow: none;">₹${parseFloat(u.purseRemaining).toFixed(1)}Cr</span>
-                    </div>
-                    <div style="color:var(--text-muted); font-size: 0.85em; margin-top: 5px;">Roster: ${u.squad.length} / ${myRules.maxSquad}</div>
-                </div>`;
+        socket.on('disconnect', () => {
+            const iBtn = document.getElementById('init-btn');
+            if(iBtn) {
+                iBtn.disabled = true; iBtn.innerText = "CONNECTION LOST...";
+                iBtn.style.background = "#333"; iBtn.classList.add('disabled');
+            }
         });
-    });
 
-    socket.on('playerUnsold', () => { 
-        document.body.classList.remove('hype-active');
-        document.getElementById('p-name').innerText = "UNSOLD"; 
-        speakAuction("Player Unsold."); 
-    });
+        // --- ALL ORIGINAL SOCKET LOGIC MOVED INSIDE HERE ---
+        let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
+        let myRules = { maxSquad: 15, maxOverseas: 4 };
+        let mySquadData = [];
+        let myColor = "#ff003c";
+        let allUsersCache = [];
+        let selectedXI = []; 
 
-    document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
-    document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
-    document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
-    document.getElementById('end-early-btn').onclick = () => socket.emit('endAuctionEarly', room);
+        const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
 
-    socket.on('auctionPaused', () => {
-        document.getElementById('timer').innerText = "PAUSE";
-        if(isHost) { document.getElementById('pause-btn').classList.add('hidden'); document.getElementById('resume-btn').classList.remove('hidden'); }
-    });
-
-    socket.on('auctionResumed', () => {
-        if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
-    });
-
-    function renderTradeRosters() {
-        const box = document.getElementById('live-rosters-container');
-        box.innerHTML = '';
-        allUsersCache.forEach(u => {
-            let pHtml = '';
-            u.squad.forEach(p => { pHtml += `<div class="squad-badge" style="border-color:${u.color};"><span>#${p.jerseyNumber || '00'}</span> ${p.name}</div>`; });
-            box.innerHTML += `
-                <div style="background: rgba(0,0,0,0.6); padding: 10px; border-left: 4px solid ${u.color}; margin-bottom: 10px;">
-                    <div style="color:${u.color}; font-family:'Orbitron'; font-weight:900; margin-bottom: 5px;">${u.name}</div>
-                    ${pHtml || '<div style="color:#555; font-size:0.8em;">No players.</div>'}
-                </div>`;
-        });
-    }
-
-    socket.on('tradePhaseStarted', users => {
-        allUsersCache = users;
-        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
-        document.getElementById('trade-screen').classList.remove('hidden');
-        renderTradeRosters();
-
-        if(isHost) {
-            document.getElementById('host-trade-panel').classList.remove('hidden');
-            const t1 = document.getElementById('trade-team-1'); const t2 = document.getElementById('trade-team-2');
-            t1.innerHTML = '<option value="">Select Team 1</option>'; t2.innerHTML = '<option value="">Select Team 2</option>';
-            users.forEach(u => {
-                t1.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-                t2.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-            });
-        }
-    });
-
-    function updateTradeDropdowns() {
-        const t1Name = document.getElementById('trade-team-1').value;
-        const t2Name = document.getElementById('trade-team-2').value;
-        const p1Select = document.getElementById('trade-player-1');
-        const p2Select = document.getElementById('trade-player-2');
-        p1Select.innerHTML = '<option value="">Select Player</option>';
-        p2Select.innerHTML = '<option value="">Select Player</option>';
-        
-        const u1 = allUsersCache.find(u => u.name === t1Name);
-        if(u1) u1.squad.forEach(p => p1Select.innerHTML += `<option value="${p.name}">${p.name}</option>`);
-        
-        const u2 = allUsersCache.find(u => u.name === t2Name);
-        if(u2) u2.squad.forEach(p => p2Select.innerHTML += `<option value="${p.name}">${p.name}</option>`);
-    }
-
-    document.getElementById('execute-trade-btn').onclick = () => {
-        socket.emit('executeTrade', {
-            roomCode: room,
-            team1: document.getElementById('trade-team-1').value, player1: document.getElementById('trade-player-1').value,
-            team2: document.getElementById('trade-team-2').value, player2: document.getElementById('trade-player-2').value
-        });
-    };
-
-    document.getElementById('finalize-rosters-btn').onclick = () => { socket.emit('startBuildXI', room); };
-
-    function togglePlayerXI(playerName) {
-        if(document.getElementById('submit-xi-btn').innerText === "LOCKED IN") return; 
-
-        const pIndex = selectedXI.findIndex(p => p.name === playerName);
-        const safeName = playerName.replace(/[^a-zA-Z0-9]/g, '');
-        const card = document.getElementById(`b11-card-${safeName}`);
-        
-        if(pIndex !== -1) {
-            selectedXI.splice(pIndex, 1);
-            if(card) card.classList.remove('selected');
-        } else {
-            if(selectedXI.length >= 11) { alert("You can only select 11 players!"); return; }
-            const pObj = mySquadData.find(p => p.name === playerName);
-            if(pObj) {
-                selectedXI.push(pObj);
-                if(card) card.classList.add('selected');
+        window.speakAuction = function(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.15; utterance.pitch = 0.9; 
+                window.speechSynthesis.speak(utterance);
             }
         }
-        
-        document.getElementById('b11-count').innerText = selectedXI.length;
-        
-        const btn = document.getElementById('submit-xi-btn');
-        if(selectedXI.length === 11) {
-            btn.classList.remove('disabled');
-            btn.innerText = "LOCK IN PLAYING XI";
-        } else {
-            btn.classList.add('disabled');
-            btn.innerText = "AWAITING 11 PLAYERS";
+
+        window.unlockAudio = function() {
+            ['sfx-bid', 'sfx-tick', 'sfx-hype'].forEach(id => {
+                let el = document.getElementById(id);
+                el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+            });
+            document.body.removeEventListener('click', window.unlockAudio);
+            document.body.removeEventListener('touchstart', window.unlockAudio);
         }
-    }
+        document.body.addEventListener('click', window.unlockAudio);
+        document.body.addEventListener('touchstart', window.unlockAudio);
 
-    socket.on('build11PhaseStarted', users => {
-        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
-        document.getElementById('build11-screen').classList.remove('hidden');
-        
-        document.documentElement.style.setProperty('--ui-accent', myColor);
-        document.body.style.backgroundImage = `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`;
-        
-        const me = users.find(u => u.id === socket.id);
-        if(me) mySquadData = me.squad;
+        window.playSfx = function(id) { 
+            const a = document.getElementById(id); a.currentTime = 0; a.play().catch(() => {});
+        }
 
-        const grid = document.getElementById('b11-grid');
-        grid.innerHTML = '';
-        mySquadData.sort((a,b) => b.hiddenRating - a.hiddenRating).forEach(p => {
-            const safeName = p.name ? p.name.replace(/[^a-zA-Z0-9]/g, '') : 'Unknown';
-            grid.innerHTML += `
-                <div class="build11-card" id="b11-card-${safeName}" onclick="togglePlayerXI('${p.name}')">
-                    <div style="color:#888; font-family:'Orbitron'; font-size:0.7em;">#${p.jerseyNumber || '00'} | ${p.role}</div>
-                    <div style="color:#fff; font-weight:bold; font-size:0.9em; margin-top:3px;">${p.name} ${p.country !== 'India' ? '✈️' : ''}</div>
-                </div>`;
+        window.toggleSpy = function() { document.getElementById('spy-menu').classList.toggle('active'); }
+
+        window.getFranchiseData = function() { 
+            myColor = document.getElementById('team-color').value;
+            document.documentElement.style.setProperty('--ui-accent', myColor);
+            return { name: document.getElementById('team-name').value || 'Unknown', color: myColor }; 
+        }
+
+        window.createGame = function() {
+            initialPurse = parseFloat(document.getElementById('purse-input').value) || 100;
+            const brand = window.getFranchiseData();
+            socket.emit('createRoom', { startingPurse: initialPurse, format: document.getElementById('format-select').value, teamName: brand.name, teamColor: brand.color });
+        }
+
+        window.joinGame = function() { 
+            const brand = window.getFranchiseData();
+            socket.emit('joinRoom', { roomCode: document.getElementById('join-input').value.toUpperCase(), teamName: brand.name, teamColor: brand.color }); 
+        }
+
+        socket.on('roomCreated', d => { 
+            room = d.code; window.roomCodeCache = room; isHost = true;
+            initialPurse = d.purse;
+            document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
+            
+            document.getElementById('home-screen').classList.add('hidden'); 
+            document.getElementById('settings-screen').classList.remove('hidden');
+            document.getElementById('display-room-code').innerText = room;
+            document.getElementById('nav-code').innerText = room; 
         });
 
-        if(isHost) {
-            document.getElementById('host-evaluate-panel').classList.remove('hidden');
-            document.getElementById('evaluate-results-btn').onclick = () => { socket.emit('evaluateResults', room); };
-        }
-    });
-
-    document.getElementById('submit-xi-btn').onclick = function() {
-        if(selectedXI.length === 11) {
-            socket.emit('submitXI', { roomCode: room, xi: selectedXI });
-            this.classList.add('disabled');
-            this.innerText = "LOCKED IN";
-            document.getElementById('b11-title').innerText = "WAITING FOR HOST...";
-            speakAuction("Starting Eleven Locked In.");
-        }
-    };
-
-    socket.on('gameEnded', leaderboardData => {
-        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
-        document.getElementById('results-screen').classList.remove('hidden');
-        document.getElementById('winner-crown').classList.remove('hidden');
-        
-        const me = leaderboardData.find(u => socket.id && u.name === document.getElementById('team-name').value); 
-        if(me && leaderboardData[0].name === me.name) {
-            confetti({ particleCount: 300, spread: 120, origin: { y: 0.5 }, colors: [me.color, '#ffffff'] });
-        }
-
-        const board = document.getElementById('leaderboard-container');
-        board.innerHTML = ''; 
-        leaderboardData.forEach((team, index) => {
-            let xiHtml = '';
-            team.playing11.forEach(p => { xiHtml += `<span class="squad-badge" style="border-color:${team.color}"><span>#${p.jerseyNumber || '00'}</span>${p.name}</span>`; });
+        window.saveAndStart = function() {
+            document.getElementById('settings-screen').classList.add('hidden');
+            document.getElementById('auction-screen').classList.remove('hidden');
+            document.getElementById('host-controls').classList.remove('hidden');
             
-            let benchHtml = '';
-            team.bench.forEach(p => { benchHtml += `<span class="squad-badge" style="border-color:#333; color:#777;"><span>#${p.jerseyNumber || '00'}</span>${p.name}</span>`; });
+            myRules.maxSquad = parseInt(document.getElementById('max-squad').value);
+            myRules.maxOverseas = parseInt(document.getElementById('max-os').value);
+            socket.emit('updateRulesAndStart', { roomCode: room, maxSquad: myRules.maxSquad, maxOverseas: myRules.maxOverseas });
+        }
+
+        socket.on('roomJoined', d => { 
+            room = d.code; window.roomCodeCache = room;
             
-            board.innerHTML += `
-            <div style="background: rgba(0,0,0,0.6); border: 1px solid ${index === 0 ? 'var(--gold)' : team.color}; padding: 15px; margin-bottom: 15px; border-left: 5px solid ${index === 0 ? 'var(--gold)' : team.color}; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
-                    <div style="text-align: left;">
-                        <h2 style="margin: 0; color: ${index === 0 ? 'var(--gold)' : team.color}; font-size: 1.3em; text-shadow: 0 0 10px ${index === 0 ? 'var(--gold)' : team.color};">${index === 0 ? '🥇' : '#'+(index+1)} ${team.name}</h2>
-                        <div style="color: var(--safe-green); font-family: 'Orbitron'; font-size: 0.85em; margin-top: 5px;">AI XI RATING: <b style="font-size:1.2em;">${team.aiRating}</b> / 10.0</div>
-                    </div>
-                    <div style="color: var(--gold); font-family: 'Orbitron'; font-weight: 900; font-size: 1.2em; text-align: right;">
-                        ₹${team.purseLeft}Cr <br><span style="font-size: 0.5em; color: #777;">REMAINING</span>
-                    </div>
-                </div>
+            // THE ULTIMATE FIX: The UI now perfectly recovers Host privileges!
+            isHost = d.isHost; 
+            
+            initialPurse = d.purse;
+            document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
+            
+            myRules = d.rules;
+            document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
+            document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
+            
+            document.getElementById('home-screen').classList.add('hidden'); 
+            document.getElementById('auction-screen').classList.remove('hidden');
+            document.getElementById('nav-code').innerText = room; 
+        });
+
+        socket.on('rulesUpdated', rules => { 
+            myRules = rules; 
+            document.getElementById('rule-max-squad').innerText = myRules.maxSquad;
+            document.getElementById('rule-max-os').innerText = myRules.maxOverseas;
+        });
+
+        socket.on('waitingForNextPlayer', list => {
+            document.getElementById('main-player-card').classList.remove('legendary');
+            document.body.classList.remove('hype-active');
+            document.getElementById('bid-btn').classList.remove('hype-btn');
+            
+            document.getElementById('p-name').innerText = "SYSTEM STANDBY";
+            document.getElementById('p-name').style.color = "#fff";
+            document.getElementById('p-info').innerText = "Awaiting Host Selection...";
+            document.getElementById('p-base').innerText = "0.0";
+            document.getElementById('p-jersey').innerText = "--";
+            document.getElementById('c-bid').innerText = "0.0";
+            document.getElementById('c-bidder').innerText = "None";
+            document.getElementById('c-bidder').style.color = "#fff";
+            document.getElementById('c-bidder').style.textShadow = "none";
+            document.getElementById('timer').innerText = "--";
+            document.getElementById('p-ticker').innerText = "SYSTEM STANDBY...";
+            
+            document.getElementById('scout-tag').innerText = "IDLE";
+            document.getElementById('scout-tag').style.background = "#555";
+            document.getElementById('scout-msg').innerText = "Processing deck...";
+
+            document.getElementById('bid-btn').classList.add('disabled');
+            document.getElementById('bid-btn').innerText = "STANDBY";
+
+            if (isHost) {
+                const dropdown = document.getElementById('next-player-dropdown');
+                dropdown.innerHTML = '';
                 
-                <div style="text-align: left;">
-                    <div style="color:${team.color}; font-size: 0.7em; font-family:'Orbitron'; margin-bottom: 5px;">▶ STARTING XI</div>
-                    ${xiHtml || '<span style="color:#777; font-size:0.8em;">No XI Submitted (Auto-Assigned)</span>'}
-                    
-                    <div style="color:#555; font-size: 0.7em; font-family:'Orbitron'; margin-top: 10px; margin-bottom: 5px;">▶ BENCH</div>
-                    ${benchHtml || '<span style="color:#555; font-size:0.8em;">Empty Bench</span>'}
-                </div>
-            </div>`;
+                list.forEach(p => { if(captainList.includes(p.name)) p.role = "Captain"; });
+                
+                const roles = ['Captain', 'Opener', 'Middle Order', 'Wicketkeeper', 'All-Rounder', 'Pacer', 'Spinner'];
+                roles.forEach(role => {
+                    const playersInRole = list.filter(p => p.role === role);
+                    if (playersInRole.length > 0) {
+                        const group = document.createElement('optgroup');
+                        group.label = `${role}s (${playersInRole.length})`;
+                        playersInRole.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p.name;
+                            opt.innerText = `${p.name} (₹${p.basePrice}Cr)`;
+                            group.appendChild(opt);
+                        });
+                        dropdown.appendChild(group);
+                    }
+                });
+                
+                document.getElementById('host-selection-panel').classList.remove('hidden');
+                document.getElementById('pause-btn').classList.add('hidden');
+                document.getElementById('undo-btn').classList.add('hidden');
+
+                const blockBtn = document.getElementById('send-to-block-btn');
+                blockBtn.disabled = false;
+                blockBtn.innerText = "SEND TO BLOCK";
+            }
         });
-    });
 
-    const sendChatMsg = () => {
-        const msg = document.getElementById('chat-input').value.trim();
-        if(msg !== "" && room !== "") { 
-            socket.emit('sendChatMessage', { roomCode: room, message: msg }); 
-            document.getElementById('chat-input').value = ''; 
+        document.getElementById('send-to-block-btn').onclick = function() {
+            const selectedPlayer = document.getElementById('next-player-dropdown').value;
+            if(selectedPlayer) {
+                socket.emit('bringPlayerUp', { roomCode: room, playerName: selectedPlayer });
+                this.disabled = true; 
+                this.innerText = "TRANSMITTING...";
+                setTimeout(() => { this.disabled = false; this.innerText = "SEND TO BLOCK"; }, 3000);
+            }
+        };
+
+        let currentIsOverseas = false;
+        socket.on('newPlayerUp', d => {
+            currentHiddenRating = d.player.hiddenRating;
+            currentIsOverseas = d.player.country !== 'India'; 
+            if(captainList.includes(d.player.name)) d.player.role = "Captain"; 
+
+            document.body.classList.remove('hype-active');
+            document.getElementById('bid-btn').classList.remove('hype-btn');
+
+            const card = document.getElementById('main-player-card');
+            const pName = document.getElementById('p-name');
+            
+            if (currentHiddenRating >= 95) {
+                card.classList.add('legendary');
+                window.speakAuction(`Warning. Franchise Player Detected. ${d.player.name} is on the block.`);
+            } else {
+                card.classList.remove('legendary');
+                pName.style.color = "#fff";
+                pName.style.textShadow = "none";
+                window.speakAuction(`${d.player.name} is up.`);
+            }
+
+            const osIcon = currentIsOverseas ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="var(--ui-accent)" style="vertical-align: middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>` : '';
+
+            pName.innerText = d.player.name;
+            document.getElementById('p-jersey').innerText = d.player.jerseyNumber || "00";
+            document.getElementById('p-base').innerText = d.player.basePrice.toFixed(1);
+            document.getElementById('p-info').innerHTML = `${d.player.role} | ${d.player.country} ${osIcon}`;
+            document.getElementById('c-bid').innerText = d.player.basePrice.toFixed(1);
+            
+            let tvStats = ""; let rate = currentHiddenRating;
+            if(d.player.role === 'Opener') tvStats = `🔥 ${Math.floor(rate * 40)} Powerplay Runs | ⚡ Strike Rate: ${Math.floor(rate * 1.55)}`;
+            else if(d.player.role === 'Middle Order') tvStats = `🎯 ${Math.floor(rate * 35)} Runs | 💥 Finish Rate: ${Math.floor(rate * 1.4)} | 🏏 Crisis Manager`;
+            else if(d.player.role === 'Pacer') tvStats = `🚀 Pace: 145kmph+ | 🎯 ${Math.floor(rate * 1.8)} Wickets | 📉 Economy: ${(rate > 90 ? 6.5 : 7.8)}`;
+            else if(d.player.role === 'Spinner') tvStats = `🌪️ Turn: Elite | 🎯 ${Math.floor(rate * 1.5)} Wickets | 📉 Economy: ${(rate > 90 ? 6.2 : 7.5)}`;
+            else if(d.player.role === 'All-Rounder') tvStats = `🔥 ${Math.floor(rate * 30)} Runs | 🎯 ${Math.floor(rate * 1.2)} Wickets | 🏆 Match Winner`;
+            else if(d.player.role === 'Captain') tvStats = `👑 Elite Leadership | 🏆 Multi-Format Winner | 🧠 Tactical Genius`;
+            else tvStats = `🧤 ${Math.floor(rate * 1.1)} Dismissals | 🔥 ${Math.floor(rate * 35)} Runs | ⚡ Reflexes: Elite`;
+            
+            document.getElementById('p-ticker').innerText = `▶ BROADCAST FEED: ${d.player.name} — ${tvStats} ◀`;
+
+            const cBidder = document.getElementById('c-bidder');
+            cBidder.innerText = "None";
+            cBidder.style.color = "#fff";
+            cBidder.style.textShadow = "none";
+            
+            document.getElementById('timer').style.color = "var(--neon-red)";
+            document.getElementById('scout-tag').innerText = "ACTIVE";
+            document.getElementById('scout-tag').style.background = "var(--ui-accent)";
+            document.getElementById('scout-msg').innerText = "Target acquired. Awaiting bids...";
+
+            document.getElementById('bid-btn').classList.remove('disabled');
+            document.getElementById('bid-btn').innerText = "TRANSMIT BID";
+            
+            if(isHost) { 
+                document.getElementById('host-selection-panel').classList.add('hidden');
+                document.getElementById('resume-btn').classList.add('hidden'); 
+                document.getElementById('pause-btn').classList.remove('hidden'); 
+                document.getElementById('undo-btn').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('bid-btn').onclick = () => { 
+            if (document.getElementById('bid-btn').classList.contains('disabled')) return;
+            socket.emit('placeBid', room); 
+        };
+
+        socket.on('bidUpdated', d => {
+            document.getElementById('c-bid').innerText = d.bidAmount.toFixed(1);
+            
+            const bidderText = document.getElementById('c-bidder');
+            bidderText.innerText = d.bidderName;
+            bidderText.style.color = d.bidderColor;
+            bidderText.style.textShadow = `0 0 10px ${d.bidderColor}`;
+            
+            window.playSfx('sfx-bid');
+
+            const btn = document.getElementById('bid-btn');
+            if (d.hypeMode) {
+                if(!document.body.classList.contains('hype-active')) { window.playSfx('sfx-hype'); }
+                document.body.classList.add('hype-active');
+                btn.classList.add('hype-btn');
+                btn.innerText = "HYPE BIDS (+1.0 CR) 🔥";
+                document.getElementById('scout-tag').innerText = "HYPE TRAIN";
+                document.getElementById('scout-tag').style.background = "var(--neon-red)";
+                document.getElementById('scout-msg').innerText = "Bidding velocity critical!";
+            } else {
+                document.body.classList.remove('hype-active');
+                btn.classList.remove('hype-btn');
+                btn.innerText = "TRANSMIT BID";
+                
+                const valueRatio = (d.bidAmount * 10) / currentHiddenRating; 
+                const scoutTag = document.getElementById('scout-tag');
+                const scoutMsg = document.getElementById('scout-msg');
+                if(valueRatio < 0.5) { scoutTag.innerText = "STEAL"; scoutTag.style.background = "var(--safe-green)"; scoutMsg.innerText = "High value target."; }
+                else if(valueRatio < 1.2) { scoutTag.innerText = "FAIR"; scoutTag.style.background = "var(--gold)"; scoutMsg.innerText = "Market value approaching."; }
+                else { scoutTag.innerText = "OVERPAID"; scoutTag.style.background = "var(--neon-red)"; scoutMsg.innerText = "Warning: Critical fund drain detected!"; }
+            }
+        });
+
+        socket.on('timerUpdate', t => {
+            document.getElementById('timer').innerText = t;
+            if(t <= 5 && t > 0) { window.playSfx('sfx-tick'); document.getElementById('timer').style.color = "var(--gold)"; }
+        });
+
+        socket.on('playerSold', d => {
+            window.speakAuction(`Sold to ${d.winnerName} for ${d.amount.toFixed(1)} Crores.`); 
+            document.body.classList.remove('hype-active');
+            
+            const me = d.users.find(u => u.id === socket.id);
+            
+            if(me && me.name === d.winnerName) {
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: [d.winnerColor, '#ffffff'] });
+            }
+
+            if(me) {
+                mySquadData = me.squad; 
+                const perc = (me.purseRemaining / initialPurse) * 100;
+                document.getElementById('purse-bar').style.width = perc + "%";
+                document.getElementById('nav-purse').innerText = me.purseRemaining.toFixed(1);
+
+                document.getElementById('squad-count').innerText = me.squad.length;
+                document.getElementById('os-count').innerText = me.squad.filter(p => p.country !== 'India').length;
+                
+                let opn=0, mid=0, pac=0, spn=0, wks=0, caps=0;
+                me.squad.forEach(p => {
+                    let r = captainList.includes(p.name) ? 'Captain' : p.role;
+                    if(r === 'Captain') caps++;
+                    if(p.role === 'Opener') opn++;
+                    if(p.role === 'Middle Order') mid++;
+                    if(p.role === 'Wicketkeeper') wks++;
+                    if(p.role === 'Pacer') pac++;
+                    if(p.role === 'Spinner') spn++;
+                    if(p.role === 'All-Rounder') { mid++; pac++; spn++; } 
+                });
+                
+                const updateBadge = (id, count, req) => {
+                    const el = document.getElementById(id);
+                    el.innerText = `${id.replace('need-','').toUpperCase()} (${count}/${req})`;
+                    if(count >= req) { el.classList.remove('alert'); el.classList.add('filled'); }
+                };
+                updateBadge('need-opn', opn, 2); updateBadge('need-mid', mid, 3);
+                updateBadge('need-pac', pac, 2); updateBadge('need-spn', spn, 1);
+                updateBadge('need-wk', wks, 1); updateBadge('need-cap', caps, 1);
+
+                const list = document.getElementById('my-squad-list');
+                list.innerHTML = '';
+                me.squad.forEach(p => {
+                    let flag = p.country !== 'India' ? `<span style="color:var(--ui-accent); font-size: 0.8em;">[INT]</span>` : '';
+                    let finalPrice = (p.soldPrice !== undefined) ? p.soldPrice : p.basePrice;
+                    list.innerHTML += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span><span style="color:#555">#${p.jerseyNumber}</span> ${p.name} ${flag}</span><span style="color:var(--gold); font-family:'Orbitron'; font-weight:700;">₹${finalPrice.toFixed(1)}Cr</span></li>`;
+                });
+            }
+
+            const spyList = document.getElementById('spy-list');
+            spyList.innerHTML = '';
+            d.users.forEach(u => {
+                spyList.innerHTML += `
+                    <div style="background: rgba(0,0,0,0.4); border: 1px solid #222; padding:12px; margin-bottom: 8px; border-left: 3px solid ${u.color};">
+                        <div style="color:${u.color}; font-family:'Orbitron'; font-weight:700; font-size: 1.1em; display:flex; justify-content:space-between; text-shadow: 0 0 5px ${u.color};">
+                            ${u.name} <span style="color:var(--gold); text-shadow: none;">₹${parseFloat(u.purseRemaining).toFixed(1)}Cr</span>
+                        </div>
+                        <div style="color:var(--text-muted); font-size: 0.85em; margin-top: 5px;">Roster: ${u.squad.length} / ${myRules.maxSquad}</div>
+                    </div>`;
+            });
+        });
+
+        socket.on('playerUnsold', () => { 
+            document.body.classList.remove('hype-active');
+            document.getElementById('p-name').innerText = "UNSOLD"; 
+            window.speakAuction("Player Unsold."); 
+        });
+
+        document.getElementById('pause-btn').onclick = () => socket.emit('pauseAuction', room);
+        document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
+        document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
+        document.getElementById('end-early-btn').onclick = () => socket.emit('endAuctionEarly', room);
+
+        socket.on('auctionPaused', () => {
+            document.getElementById('timer').innerText = "PAUSE";
+            if(isHost) { document.getElementById('pause-btn').classList.add('hidden'); document.getElementById('resume-btn').classList.remove('hidden'); }
+        });
+
+        socket.on('auctionResumed', () => {
+            if(isHost) { document.getElementById('resume-btn').classList.add('hidden'); document.getElementById('pause-btn').classList.remove('hidden'); }
+        });
+
+        window.renderTradeRosters = function() {
+            const box = document.getElementById('live-rosters-container');
+            box.innerHTML = '';
+            allUsersCache.forEach(u => {
+                let pHtml = '';
+                u.squad.forEach(p => { pHtml += `<div class="squad-badge" style="border-color:${u.color};"><span>#${p.jerseyNumber || '00'}</span> ${p.name}</div>`; });
+                box.innerHTML += `
+                    <div style="background: rgba(0,0,0,0.6); padding: 10px; border-left: 4px solid ${u.color}; margin-bottom: 10px;">
+                        <div style="color:${u.color}; font-family:'Orbitron'; font-weight:900; margin-bottom: 5px;">${u.name}</div>
+                        ${pHtml || '<div style="color:#555; font-size:0.8em;">No players.</div>'}
+                    </div>`;
+            });
         }
-    };
-    
-    document.getElementById('send-btn').onclick = sendChatMsg;
-    document.getElementById('chat-input').addEventListener('keypress', function (e) { 
-        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); sendChatMsg(); } 
-    });
 
-    socket.on('receiveChatMessage', d => { 
-        const box = document.getElementById('chat-messages');
-        box.insertAdjacentHTML('afterbegin', `<div style="margin-bottom: 6px;"><b style="color:${d.color}; font-family:'Orbitron'; font-size:0.9em; text-shadow: 0 0 5px ${d.color};">[${d.sender}]</b> <span style="color:#fff">${d.message}</span></div>`);
+        socket.on('tradePhaseStarted', users => {
+            allUsersCache = users;
+            document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+            document.getElementById('trade-screen').classList.remove('hidden');
+            window.renderTradeRosters();
+
+            if(isHost) {
+                document.getElementById('host-trade-panel').classList.remove('hidden');
+                const t1 = document.getElementById('trade-team-1'); const t2 = document.getElementById('trade-team-2');
+                t1.innerHTML = '<option value="">Select Team 1</option>'; t2.innerHTML = '<option value="">Select Team 2</option>';
+                users.forEach(u => {
+                    t1.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+                    t2.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+                });
+            }
+        });
+
+        window.updateTradeDropdowns = function() {
+            const t1Name = document.getElementById('trade-team-1').value;
+            const t2Name = document.getElementById('trade-team-2').value;
+            const p1Select = document.getElementById('trade-player-1');
+            const p2Select = document.getElementById('trade-player-2');
+            p1Select.innerHTML = '<option value="">Select Player</option>';
+            p2Select.innerHTML = '<option value="">Select Player</option>';
+            
+            const u1 = allUsersCache.find(u => u.name === t1Name);
+            if(u1) u1.squad.forEach(p => p1Select.innerHTML += `<option value="${p.name}">${p.name}</option>`);
+            
+            const u2 = allUsersCache.find(u => u.name === t2Name);
+            if(u2) u2.squad.forEach(p => p2Select.innerHTML += `<option value="${p.name}">${p.name}</option>`);
+        }
+
+        document.getElementById('execute-trade-btn').onclick = () => {
+            socket.emit('executeTrade', {
+                roomCode: room,
+                team1: document.getElementById('trade-team-1').value, player1: document.getElementById('trade-player-1').value,
+                team2: document.getElementById('trade-team-2').value, player2: document.getElementById('trade-player-2').value
+            });
+        };
+
+        document.getElementById('finalize-rosters-btn').onclick = () => { socket.emit('startBuildXI', room); };
+
+        window.togglePlayerXI = function(playerName) {
+            if(document.getElementById('submit-xi-btn').innerText === "LOCKED IN") return; 
+
+            const pIndex = selectedXI.findIndex(p => p.name === playerName);
+            const safeName = playerName.replace(/[^a-zA-Z0-9]/g, '');
+            const card = document.getElementById(`b11-card-${safeName}`);
+            
+            if(pIndex !== -1) {
+                selectedXI.splice(pIndex, 1);
+                if(card) card.classList.remove('selected');
+            } else {
+                if(selectedXI.length >= 11) { alert("You can only select 11 players!"); return; }
+                const pObj = mySquadData.find(p => p.name === playerName);
+                if(pObj) {
+                    selectedXI.push(pObj);
+                    if(card) card.classList.add('selected');
+                }
+            }
+            
+            document.getElementById('b11-count').innerText = selectedXI.length;
+            
+            const btn = document.getElementById('submit-xi-btn');
+            if(selectedXI.length === 11) {
+                btn.classList.remove('disabled');
+                btn.innerText = "LOCK IN PLAYING XI";
+            } else {
+                btn.classList.add('disabled');
+                btn.innerText = "AWAITING 11 PLAYERS";
+            }
+        }
+
+        socket.on('build11PhaseStarted', users => {
+            document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+            document.getElementById('build11-screen').classList.remove('hidden');
+            
+            document.documentElement.style.setProperty('--ui-accent', myColor);
+            document.body.style.backgroundImage = `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`;
+            
+            const me = users.find(u => u.id === socket.id);
+            if(me) mySquadData = me.squad;
+
+            const grid = document.getElementById('b11-grid');
+            grid.innerHTML = '';
+            mySquadData.sort((a,b) => b.hiddenRating - a.hiddenRating).forEach(p => {
+                const safeName = p.name ? p.name.replace(/[^a-zA-Z0-9]/g, '') : 'Unknown';
+                grid.innerHTML += `
+                    <div class="build11-card" id="b11-card-${safeName}" onclick="togglePlayerXI('${p.name}')">
+                        <div style="color:#888; font-family:'Orbitron'; font-size:0.7em;">#${p.jerseyNumber || '00'} | ${p.role}</div>
+                        <div style="color:#fff; font-weight:bold; font-size:0.9em; margin-top:3px;">${p.name} ${p.country !== 'India' ? '✈️' : ''}</div>
+                    </div>`;
+            });
+
+            if(isHost) {
+                document.getElementById('host-evaluate-panel').classList.remove('hidden');
+                document.getElementById('evaluate-results-btn').onclick = () => { socket.emit('evaluateResults', room); };
+            }
+        });
+
+        document.getElementById('submit-xi-btn').onclick = function() {
+            if(selectedXI.length === 11) {
+                socket.emit('submitXI', { roomCode: room, xi: selectedXI });
+                this.classList.add('disabled');
+                this.innerText = "LOCKED IN";
+                document.getElementById('b11-title').innerText = "WAITING FOR HOST...";
+                window.speakAuction("Starting Eleven Locked In.");
+            }
+        };
+
+        socket.on('gameEnded', leaderboardData => {
+            document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+            document.getElementById('results-screen').classList.remove('hidden');
+            document.getElementById('winner-crown').classList.remove('hidden');
+            
+            const me = leaderboardData.find(u => socket.id && u.name === document.getElementById('team-name').value); 
+            if(me && leaderboardData[0].name === me.name) {
+                confetti({ particleCount: 300, spread: 120, origin: { y: 0.5 }, colors: [me.color, '#ffffff'] });
+            }
+
+            const board = document.getElementById('leaderboard-container');
+            board.innerHTML = ''; 
+            leaderboardData.forEach((team, index) => {
+                let xiHtml = '';
+                team.playing11.forEach(p => { xiHtml += `<span class="squad-badge" style="border-color:${team.color}"><span>#${p.jerseyNumber || '00'}</span>${p.name}</span>`; });
+                
+                let benchHtml = '';
+                team.bench.forEach(p => { benchHtml += `<span class="squad-badge" style="border-color:#333; color:#777;"><span>#${p.jerseyNumber || '00'}</span>${p.name}</span>`; });
+                
+                board.innerHTML += `
+                <div style="background: rgba(0,0,0,0.6); border: 1px solid ${index === 0 ? 'var(--gold)' : team.color}; padding: 15px; margin-bottom: 15px; border-left: 5px solid ${index === 0 ? 'var(--gold)' : team.color}; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
+                        <div style="text-align: left;">
+                            <h2 style="margin: 0; color: ${index === 0 ? 'var(--gold)' : team.color}; font-size: 1.3em; text-shadow: 0 0 10px ${index === 0 ? 'var(--gold)' : team.color};">${index === 0 ? '🥇' : '#'+(index+1)} ${team.name}</h2>
+                            <div style="color: var(--safe-green); font-family: 'Orbitron'; font-size: 0.85em; margin-top: 5px;">AI XI RATING: <b style="font-size:1.2em;">${team.aiRating}</b> / 10.0</div>
+                        </div>
+                        <div style="color: var(--gold); font-family: 'Orbitron'; font-weight: 900; font-size: 1.2em; text-align: right;">
+                            ₹${team.purseLeft}Cr <br><span style="font-size: 0.5em; color: #777;">REMAINING</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: left;">
+                        <div style="color:${team.color}; font-size: 0.7em; font-family:'Orbitron'; margin-bottom: 5px;">▶ STARTING XI</div>
+                        ${xiHtml || '<span style="color:#777; font-size:0.8em;">No XI Submitted (Auto-Assigned)</span>'}
+                        
+                        <div style="color:#555; font-size: 0.7em; font-family:'Orbitron'; margin-top: 10px; margin-bottom: 5px;">▶ BENCH</div>
+                        ${benchHtml || '<span style="color:#555; font-size:0.8em;">Empty Bench</span>'}
+                    </div>
+                </div>`;
+            });
+        });
+
+        window.sendChatMsg = function() {
+            const msg = document.getElementById('chat-input').value.trim();
+            if(msg !== "" && room !== "") { 
+                socket.emit('sendChatMessage', { roomCode: room, message: msg }); 
+                document.getElementById('chat-input').value = ''; 
+            }
+        };
+        
+        document.getElementById('send-btn').onclick = window.sendChatMsg;
+        document.getElementById('chat-input').addEventListener('keypress', function (e) { 
+            if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); window.sendChatMsg(); } 
+        });
+
+        socket.on('receiveChatMessage', d => { 
+            const box = document.getElementById('chat-messages');
+            box.insertAdjacentHTML('afterbegin', `<div style="margin-bottom: 6px;"><b style="color:${d.color}; font-family:'Orbitron'; font-size:0.9em; text-shadow: 0 0 5px ${d.color};">[${d.sender}]</b> <span style="color:#fff">${d.message}</span></div>`);
+        });
     });
 </script>
 </body>
