@@ -376,11 +376,20 @@
     <button onclick="location.reload()" style="width:100%; margin-top:20px; background:var(--ui-accent); color:#fff; padding: 15px; border:none; font-family:'Orbitron'; font-weight:900; font-size: 1.2em; cursor:pointer; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);">INITIALIZE NEW MATCH</button>
 </div>
 
-<audio id="sfx-bid" src="https://actions.google.com/sounds/v1/ui/pop_up_on.ogg" preload="auto"></audio>
-<audio id="sfx-tick" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-<audio id="sfx-hype" src="https://actions.google.com/sounds/v1/water/water_leak.ogg" preload="auto"></audio>
+<script>
+    window.addEventListener('load', () => {
+        const socket = io();
+        window.socket = socket; // Make global for the main script block
+        
+        socket.on('connect', () => {
+            // If the user drops connection and reconnects, automatically reclaim their session
+            if (window.roomCodeCache && window.roomCodeCache !== "") {
+                socket.emit('joinRoom', { roomCode: window.roomCodeCache, teamName: document.getElementById('team-name').value, teamColor: document.getElementById('team-color').value });
+            }
+        });
+    });
+</script>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
     const socket = io();
     let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
@@ -399,17 +408,6 @@
             window.speechSynthesis.speak(utterance);
         }
     }
-
-    function unlockAudio() {
-        ['sfx-bid', 'sfx-tick', 'sfx-hype'].forEach(id => {
-            let el = document.getElementById(id);
-            el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
-        });
-        document.body.removeEventListener('click', unlockAudio);
-        document.body.removeEventListener('touchstart', unlockAudio);
-    }
-    document.body.addEventListener('click', unlockAudio);
-    document.body.addEventListener('touchstart', unlockAudio);
 
     function playSfx(id) { 
         const a = document.getElementById(id); a.currentTime = 0; a.play().catch(() => {});
@@ -435,7 +433,7 @@
     }
 
     socket.on('roomCreated', d => { 
-        room = d.code; isHost = true;
+        room = d.code; window.roomCodeCache = room; isHost = true;
         initialPurse = d.purse;
         document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
         
@@ -456,7 +454,7 @@
     }
 
     socket.on('roomJoined', d => { 
-        room = d.code; 
+        room = d.code; window.roomCodeCache = room;
         initialPurse = d.purse;
         document.getElementById('nav-purse').innerText = initialPurse.toFixed(1);
         
@@ -537,11 +535,7 @@
             socket.emit('bringPlayerUp', { roomCode: room, playerName: selectedPlayer });
             this.disabled = true; 
             this.innerText = "TRANSMITTING...";
-            // UI FAILSAFE: If connection drops, unlock the button after 3 seconds
-            setTimeout(() => {
-                this.disabled = false;
-                this.innerText = "SEND TO BLOCK";
-            }, 3000);
+            setTimeout(() => { this.disabled = false; this.innerText = "SEND TO BLOCK"; }, 3000);
         }
     };
 
@@ -624,7 +618,6 @@
 
         const btn = document.getElementById('bid-btn');
         if (d.hypeMode) {
-            if(!document.body.classList.contains('hype-active')) { playSfx('sfx-hype'); }
             document.body.classList.add('hype-active');
             btn.classList.add('hype-btn');
             btn.innerText = "HYPE BIDS (+1.0 CR) 🔥";
