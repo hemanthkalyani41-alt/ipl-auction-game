@@ -256,6 +256,7 @@
         <button id="pause-btn" style="color: var(--gold);">⏸ PAUSE</button>
         <button id="resume-btn" class="hidden" style="color: var(--safe-green);">▶ RESUME</button>
         <button id="undo-btn">⏪ UNDO</button>
+        <button id="sync-btn" style="color: #00e5ff;">🔄 SYNC</button>
         <button id="end-early-btn" style="color: var(--neon-red); border-color: var(--neon-red);">🛑 TO TRADES</button>
     </div>
 
@@ -418,12 +419,16 @@
 
         const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli", "Faf du Plessis"];
 
+        // FIX: Non-blocking Speech API prevents browser thread freezes on Legendary players!
         window.speakAuction = function(text) {
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.rate = 1.15; utterance.pitch = 0.9; 
-                window.speechSynthesis.speak(utterance);
-            }
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 1.15; utterance.pitch = 0.9; 
+                    setTimeout(() => window.speechSynthesis.speak(utterance), 50);
+                }
+            } catch(e) { console.warn("Speech API prevented to avoid lag."); }
         }
 
         window.unlockAudio = function() {
@@ -504,10 +509,18 @@
                 if (document.getElementById('p-name').innerText === "SYSTEM STANDBY" || document.getElementById('p-name').innerText === "") {
                      document.getElementById('host-selection-panel').classList.remove('hidden');
                      document.getElementById('pause-btn').classList.add('hidden');
+                     document.getElementById('resume-btn').classList.add('hidden');
                      document.getElementById('undo-btn').classList.add('hidden');
                 } else {
                      document.getElementById('host-selection-panel').classList.add('hidden');
-                     document.getElementById('pause-btn').classList.remove('hidden');
+                     // FIX: Perfect state recovery on Refresh
+                     if (d.isPaused) {
+                         document.getElementById('pause-btn').classList.add('hidden');
+                         document.getElementById('resume-btn').classList.remove('hidden');
+                     } else {
+                         document.getElementById('pause-btn').classList.remove('hidden');
+                         document.getElementById('resume-btn').classList.add('hidden');
+                     }
                      document.getElementById('undo-btn').classList.remove('hidden');
                 }
             }
@@ -567,6 +580,7 @@
                 
                 document.getElementById('host-selection-panel').classList.remove('hidden');
                 document.getElementById('pause-btn').classList.add('hidden');
+                document.getElementById('resume-btn').classList.add('hidden');
                 document.getElementById('undo-btn').classList.add('hidden');
 
                 const blockBtn = document.getElementById('send-to-block-btn');
@@ -741,6 +755,9 @@
         document.getElementById('resume-btn').onclick = () => socket.emit('resumeAuction', room);
         document.getElementById('undo-btn').onclick = () => socket.emit('undoBid', room);
         document.getElementById('end-early-btn').onclick = () => socket.emit('endAuctionEarly', room);
+        
+        // NEW: PANIC SYNC EVENT LISTENER
+        document.getElementById('sync-btn').onclick = () => socket.emit('syncState', room);
 
         socket.on('auctionPaused', () => {
             document.getElementById('timer').innerText = "PAUSE";
