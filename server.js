@@ -36,7 +36,7 @@ try {
 const activeRooms = {};
 const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
 
-// SERVER MEMORY PROTECTION: Clean up dead rooms every hour to prevent hanging
+// SERVER MEMORY PROTECTION: Clean up dead rooms every 6 hours to prevent hanging
 setInterval(() => {
     const now = Date.now();
     for (let code in activeRooms) {
@@ -135,7 +135,7 @@ function startBuild11Phase(roomCode) {
     io.to(roomCode).emit('build11PhaseStarted', room.users);
 }
 
-// UPGRADED DYNAMIC FORMAT AI ENGINE
+// UPGRADED DYNAMIC FORMAT & COMBINATION AI ENGINE
 function calculateAIRating(playingXI, format) {
     if(!playingXI || playingXI.length === 0) return "0.0";
     
@@ -159,16 +159,26 @@ function calculateAIRating(playingXI, format) {
         if(p.country !== 'India') overseas++;
     });
     
-    // Universal Constraints
+    // --- NEW: COMBINATION & SYNERGY BONUSES ---
+    // Reward a solid Opening Partnership
+    if (roles['Opener'] >= 2) score += 0.3;
+    // Reward Batting Depth & Utility
+    if (roles['All-Rounder'] >= 2) score += 0.4;
+    // Reward a perfectly balanced bowling attack
+    if (roles['Pacer'] >= 2 && roles['Spinner'] >= 1) score += 0.5;
+
+    // --- UNIVERSAL PENALTIES ---
     if(roles['Wicketkeeper'] === 0) score -= 1.5;
     if(roles['Opener'] < 2) score -= 1.0;
     if(roles['Captain'] === 0) score -= 0.5;
     if(overseas > 4) score -= 2.0; 
-    if(playingXI.length < 11) score -= 2.0; 
+    
+    // Note: If a player only bought 1 person, penalize heavily so they don't win with 1 guy!
+    if(playingXI.length < 11) score -= (11 - playingXI.length) * 0.5; 
     
     let bowlingOptions = roles['Pacer'] + roles['Spinner'] + roles['All-Rounder'];
 
-    // Format-Specific Logic
+    // --- FORMAT-SPECIFIC LOGIC ---
     if (format === 'T20') {
         if(roles['All-Rounder'] < 2) score -= 1.0; 
         if(bowlingOptions < 5) score -= 1.5; 
@@ -408,7 +418,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('evaluateResults', (roomCode) => {
-      const room = activeRooms[data.roomCode];
+      // FIX: Correctly grabbing the roomCode without the "data." typo!
+      const room = activeRooms[roomCode]; 
       if (room && room.hostId === socket.id && room.build11Phase) {
           finishGame(roomCode);
       }
