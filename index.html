@@ -7,6 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    <script src="/socket.io/socket.io.js"></script>
+    
     <style>
         :root { 
             --gold: #ffcc00; 
@@ -414,7 +416,6 @@
             }
         });
 
-        // --- ALL ORIGINAL SOCKET LOGIC MOVED INSIDE HERE ---
         let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
         let myRules = { maxSquad: 15, maxOverseas: 4 };
         let mySquadData = [];
@@ -490,7 +491,7 @@
         socket.on('roomJoined', d => { 
             room = d.code; window.roomCodeCache = room;
             
-            // THE ULTIMATE FIX: The UI now perfectly recovers Host privileges!
+            // FIX 2: Correctly recover host privileges on the frontend
             isHost = d.isHost; 
             
             initialPurse = d.purse;
@@ -503,6 +504,23 @@
             document.getElementById('home-screen').classList.add('hidden'); 
             document.getElementById('auction-screen').classList.remove('hidden');
             document.getElementById('nav-code').innerText = room; 
+            
+            // FIX 2 (Continued): Actually unhide the host panels!
+            if (isHost) {
+                document.getElementById('host-controls').classList.remove('hidden');
+                
+                // Check if they reconnected while waiting to pick the next player
+                if (document.getElementById('p-name').innerText === "SYSTEM STANDBY" || document.getElementById('p-name').innerText === "") {
+                     document.getElementById('host-selection-panel').classList.remove('hidden');
+                     document.getElementById('pause-btn').classList.add('hidden');
+                     document.getElementById('undo-btn').classList.add('hidden');
+                } else {
+                     // They reconnected while a player is actively on the block
+                     document.getElementById('host-selection-panel').classList.add('hidden');
+                     document.getElementById('pause-btn').classList.remove('hidden');
+                     document.getElementById('undo-btn').classList.remove('hidden');
+                }
+            }
         });
 
         socket.on('rulesUpdated', rules => { 
