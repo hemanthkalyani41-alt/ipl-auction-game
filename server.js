@@ -36,6 +36,17 @@ try {
 const activeRooms = {};
 const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
 
+// SERVER MEMORY PROTECTION: Clean up dead rooms every hour to prevent hanging
+setInterval(() => {
+    const now = Date.now();
+    for (let code in activeRooms) {
+        if (activeRooms[code].createdAt && (now - activeRooms[code].createdAt > 6 * 60 * 60 * 1000)) {
+            if (activeRooms[code].timerInterval) clearInterval(activeRooms[code].timerInterval);
+            delete activeRooms[code];
+        }
+    }
+}, 1000 * 60 * 60);
+
 function startTimer(roomCode, isResume = false) {
     const room = activeRooms[roomCode];
     if (!room) return;
@@ -124,7 +135,8 @@ function startBuild11Phase(roomCode) {
     io.to(roomCode).emit('build11PhaseStarted', room.users);
 }
 
-function calculateAIRating(playingXI) {
+// UPGRADED DYNAMIC FORMAT AI ENGINE
+function calculateAIRating(playingXI, format) {
     if(!playingXI || playingXI.length === 0) return "0.0";
     
     let avg = playingXI.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / playingXI.length;
@@ -147,17 +159,30 @@ function calculateAIRating(playingXI) {
         if(p.country !== 'India') overseas++;
     });
     
+    // Universal Constraints
     if(roles['Wicketkeeper'] === 0) score -= 1.5;
     if(roles['Opener'] < 2) score -= 1.0;
-    if(roles['Middle Order'] < 3) score -= 0.5;
-    if(roles['Pacer'] < 2) score -= 1.0;
-    if(roles['Spinner'] === 0) score -= 1.0;
-    
-    let bowlingOptions = roles['Pacer'] + roles['Spinner'] + roles['All-Rounder'];
-    if(bowlingOptions < 5) score -= 1.5; 
     if(roles['Captain'] === 0) score -= 0.5;
     if(overseas > 4) score -= 2.0; 
     if(playingXI.length < 11) score -= 2.0; 
+    
+    let bowlingOptions = roles['Pacer'] + roles['Spinner'] + roles['All-Rounder'];
+
+    // Format-Specific Logic
+    if (format === 'T20') {
+        if(roles['All-Rounder'] < 2) score -= 1.0; 
+        if(bowlingOptions < 5) score -= 1.5; 
+    } else if (format === 'Test') {
+        if(roles['Middle Order'] < 4) score -= 1.0;
+        if(roles['Spinner'] < 1) score -= 1.5;
+        if(bowlingOptions < 4) score -= 1.5; 
+    } else { 
+        // ODI and ALL
+        if(roles['Middle Order'] < 3) score -= 0.5;
+        if(roles['Pacer'] < 2) score -= 1.0;
+        if(roles['Spinner'] === 0) score -= 1.0;
+        if(bowlingOptions < 5) score -= 1.5; 
+    }
     
     return Math.max(1.0, Math.min(10.0, score)).toFixed(1);
 }
@@ -178,7 +203,7 @@ async function finishGame(roomCode) {
         purseLeft: parseFloat(user.purseRemaining).toFixed(1),
         playing11: user.playing11,
         bench: user.squad.filter(p => !user.playing11.find(xi => xi.name === p.name)),
-        aiRating: calculateAIRating(user.playing11)
+        aiRating: calculateAIRating(user.playing11, room.settings.format)
     })); 
     
     leaderboard.sort((a, b) => b.aiRating - a.aiRating || b.purseLeft - a.purseLeft);
@@ -194,14 +219,13 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     try {
         const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-        let pool = (settings.format === 'All') ? playersData : playersData.filter(p => p.formats && p.formats.includes(settings.format));
-        let shuffled = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
         
         settings.startingPurse = parseFloat(settings.startingPurse) || 100;
         settings.maxSquad = 15;
         settings.maxOverseas = 4;
 
-        activeRooms[roomCode] = { hostId: socket.id, users: [], availablePlayers: shuffled, auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
+        // Player pool generation is delayed until updateRulesAndStart so it doesn't hang here
+        activeRooms[roomCode] = { createdAt: Date.now(), hostId: socket.id, users: [], availablePlayers: [], auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
         socket.join(roomCode);
         activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff003c', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
         socket.emit('roomCreated', { code: roomCode, purse: settings.startingPurse });
@@ -218,11 +242,9 @@ io.on('connection', (socket) => {
         if (room) {
             socket.join(roomCode);
             
-            // --- THE ULTIMATE FIX: STATE RECOVERY ENGINE ---
             let existingUser = room.users.find(u => u.name === data.teamName);
             
             if (existingUser) {
-                // If the Host disconnected, give them their crown back!
                 if (room.hostId === existingUser.id) { room.hostId = socket.id; }
                 existingUser.id = socket.id;
             } else {
@@ -234,7 +256,6 @@ io.on('connection', (socket) => {
             let isUserHost = (room.hostId === socket.id);
             socket.emit('roomJoined', { code: roomCode, purse: existingUser.purseRemaining, rules: room.settings, isHost: isUserHost });
 
-            // Restore the exact screen they were on before they disconnected!
             if (room.build11Phase) {
                 socket.emit('build11PhaseStarted', room.users);
             } else if (room.tradePhase) {
@@ -259,6 +280,12 @@ io.on('connection', (socket) => {
       if (room && room.hostId === socket.id) {
           room.settings.maxSquad = data.maxSquad;
           room.settings.maxOverseas = data.maxOverseas;
+          room.settings.format = data.format;
+
+          // Process the player pool safely here to avoid hanging
+          let pool = (data.format === 'All') ? playersData : playersData.filter(p => p.formats && p.formats.includes(data.format));
+          room.availablePlayers = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
+
           io.to(data.roomCode).emit('rulesUpdated', room.settings);
           room.auctionStarted = true; 
           promptHostForNextPlayer(data.roomCode);
@@ -381,7 +408,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('evaluateResults', (roomCode) => {
-      const room = activeRooms[roomCode];
+      const room = activeRooms[data.roomCode];
       if (room && room.hostId === socket.id && room.build11Phase) {
           finishGame(roomCode);
       }
