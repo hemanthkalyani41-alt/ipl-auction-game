@@ -34,9 +34,9 @@ try {
 }
 
 const activeRooms = {};
-const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli"];
+const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli", "Faf du Plessis"];
 
-// SERVER MEMORY PROTECTION: Clean up dead rooms every 6 hours to prevent hanging
+// SERVER MEMORY PROTECTION: Clean up dead rooms every 6 hours
 setInterval(() => {
     const now = Date.now();
     for (let code in activeRooms) {
@@ -135,12 +135,13 @@ function startBuild11Phase(roomCode) {
     io.to(roomCode).emit('build11PhaseStarted', room.users);
 }
 
-// UPGRADED DYNAMIC FORMAT & COMBINATION AI ENGINE
+// UPGRADED DYNAMIC FORMAT & COMBINATION AI ENGINE WITH EXPLANATIONS
 function calculateAIRating(playingXI, format) {
-    if(!playingXI || playingXI.length === 0) return "0.0";
+    if(!playingXI || playingXI.length === 0) return { score: "0.0", reasons: ["❌ No players selected."] };
     
     let avg = playingXI.reduce((sum, p) => sum + (p.hiddenRating || 85), 0) / playingXI.length;
     let score = avg / 10; 
+    let reasons = [];
     
     let roles = { 'Opener':0, 'Middle Order':0, 'Pacer':0, 'Spinner':0, 'All-Rounder':0, 'Wicketkeeper':0, 'Captain':0 };
     let overseas = 0;
@@ -151,50 +152,50 @@ function calculateAIRating(playingXI, format) {
         roles[r] = (roles[r] || 0) + 1; 
         
         if(r === 'Captain') {
-            if(["Rohit Sharma", "Shubman Gill", "KL Rahul", "Babar Azam"].includes(p.name)) roles['Opener']++;
-            if(["Virat Kohli", "Shreyas Iyer", "Kane Williamson", "AB de Villiers"].includes(p.name)) roles['Middle Order']++;
+            if(["Rohit Sharma", "Shubman Gill", "KL Rahul", "Babar Azam", "Faf du Plessis"].includes(p.name)) roles['Opener']++;
+            if(["Virat Kohli", "Shreyas Iyer", "Kane Williamson", "AB de Villiers", "Suryakumar Yadav"].includes(p.name)) roles['Middle Order']++;
             if(["Pat Cummins"].includes(p.name)) roles['Pacer']++;
-            if(["MS Dhoni", "Sanju Samson"].includes(p.name)) roles['Wicketkeeper']++;
+            if(["MS Dhoni", "Sanju Samson", "Rishabh Pant"].includes(p.name)) roles['Wicketkeeper']++;
         }
         if(p.country !== 'India') overseas++;
     });
     
-    // --- NEW: COMBINATION & SYNERGY BONUSES ---
-    // Reward a solid Opening Partnership
-    if (roles['Opener'] >= 2) score += 0.3;
-    // Reward Batting Depth & Utility
-    if (roles['All-Rounder'] >= 2) score += 0.4;
-    // Reward a perfectly balanced bowling attack
-    if (roles['Pacer'] >= 2 && roles['Spinner'] >= 1) score += 0.5;
+    // --- SYNERGY BONUSES ---
+    if (roles['Opener'] >= 2) { score += 0.3; reasons.push("✅ Strong Opening Pair (+0.3)"); }
+    if (roles['All-Rounder'] >= 2) { score += 0.4; reasons.push("✅ Excellent All-Round Depth (+0.4)"); }
+    if (roles['Pacer'] >= 2 && roles['Spinner'] >= 1) { score += 0.5; reasons.push("✅ Balanced Pace/Spin Attack (+0.5)"); }
 
     // --- UNIVERSAL PENALTIES ---
-    if(roles['Wicketkeeper'] === 0) score -= 1.5;
-    if(roles['Opener'] < 2) score -= 1.0;
-    if(roles['Captain'] === 0) score -= 0.5;
-    if(overseas > 4) score -= 2.0; 
-    
-    // Note: If a player only bought 1 person, penalize heavily so they don't win with 1 guy!
-    if(playingXI.length < 11) score -= (11 - playingXI.length) * 0.5; 
+    if(roles['Wicketkeeper'] === 0) { score -= 1.5; reasons.push("❌ Missing Wicketkeeper (-1.5)"); }
+    if(roles['Opener'] < 2) { score -= 1.0; reasons.push("❌ Lacks Opening Batsmen (-1.0)"); }
+    if(roles['Captain'] === 0) { score -= 0.5; reasons.push("❌ No Captain Assigned (-0.5)"); }
+    if(overseas > 4) { score -= 2.0; reasons.push("❌ Exceeded Overseas Limit (-2.0)"); }
+    if(playingXI.length < 11) { 
+        let pen = (11 - playingXI.length) * 0.5;
+        score -= pen; 
+        reasons.push(`❌ Incomplete XI Penalty (-${pen.toFixed(1)})`); 
+    }
     
     let bowlingOptions = roles['Pacer'] + roles['Spinner'] + roles['All-Rounder'];
 
     // --- FORMAT-SPECIFIC LOGIC ---
     if (format === 'T20') {
-        if(roles['All-Rounder'] < 2) score -= 1.0; 
-        if(bowlingOptions < 5) score -= 1.5; 
+        if(roles['All-Rounder'] < 2) { score -= 1.0; reasons.push("❌ T20: Lacks All-Rounders (-1.0)"); }
+        if(bowlingOptions < 5) { score -= 1.5; reasons.push("❌ T20: Insufficient Bowling Options (-1.5)"); }
     } else if (format === 'Test') {
-        if(roles['Middle Order'] < 4) score -= 1.0;
-        if(roles['Spinner'] < 1) score -= 1.5;
-        if(bowlingOptions < 4) score -= 1.5; 
+        if(roles['Middle Order'] < 4) { score -= 1.0; reasons.push("❌ Test: Fragile Middle Order (-1.0)"); }
+        if(roles['Spinner'] < 1) { score -= 1.5; reasons.push("❌ Test: Missing Specialist Spinner (-1.5)"); }
+        if(bowlingOptions < 4) { score -= 1.5; reasons.push("❌ Test: Weak Bowling Attack (-1.5)"); }
     } else { 
-        // ODI and ALL
-        if(roles['Middle Order'] < 3) score -= 0.5;
-        if(roles['Pacer'] < 2) score -= 1.0;
-        if(roles['Spinner'] === 0) score -= 1.0;
-        if(bowlingOptions < 5) score -= 1.5; 
+        if(roles['Middle Order'] < 3) { score -= 0.5; reasons.push("❌ ODI: Weak Middle Order (-0.5)"); }
+        if(roles['Pacer'] < 2) { score -= 1.0; reasons.push("❌ ODI: Lacks Pace Attack (-1.0)"); }
+        if(roles['Spinner'] === 0) { score -= 1.0; reasons.push("❌ ODI: Lacks Spin Attack (-1.0)"); }
+        if(bowlingOptions < 5) { score -= 1.5; reasons.push("❌ ODI: Insufficient Bowling Options (-1.5)"); }
     }
     
-    return Math.max(1.0, Math.min(10.0, score)).toFixed(1);
+    if(reasons.filter(r => r.includes("❌")).length === 0) reasons.push("🌟 Flawless Team Composition!");
+
+    return { score: Math.max(1.0, Math.min(10.0, score)).toFixed(1), reasons: reasons };
 }
 
 async function finishGame(roomCode) {
@@ -208,13 +209,17 @@ async function finishGame(roomCode) {
         }
     });
 
-    let leaderboard = room.users.map(user => ({ 
-        name: user.name, color: user.color,
-        purseLeft: parseFloat(user.purseRemaining).toFixed(1),
-        playing11: user.playing11,
-        bench: user.squad.filter(p => !user.playing11.find(xi => xi.name === p.name)),
-        aiRating: calculateAIRating(user.playing11, room.settings.format)
-    })); 
+    let leaderboard = room.users.map(user => {
+        let aiEvaluation = calculateAIRating(user.playing11, room.settings.format);
+        return { 
+            name: user.name, color: user.color,
+            purseLeft: parseFloat(user.purseRemaining).toFixed(1),
+            playing11: user.playing11,
+            bench: user.squad.filter(p => !user.playing11.find(xi => xi.name === p.name)),
+            aiRating: aiEvaluation.score,
+            aiAnalysis: aiEvaluation.reasons
+        };
+    }); 
     
     leaderboard.sort((a, b) => b.aiRating - a.aiRating || b.purseLeft - a.purseLeft);
     io.to(roomCode).emit('gameEnded', leaderboard);
@@ -229,12 +234,8 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (settings) => {
     try {
         const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-        
         settings.startingPurse = parseFloat(settings.startingPurse) || 100;
-        settings.maxSquad = 15;
-        settings.maxOverseas = 4;
-
-        // Player pool generation is delayed until updateRulesAndStart so it doesn't hang here
+        
         activeRooms[roomCode] = { createdAt: Date.now(), hostId: socket.id, users: [], availablePlayers: [], auctionStarted: false, isSelling: false, tradePhase: false, build11Phase: false, bidHistory: [], bidTimestamps: [], settings: settings };
         socket.join(roomCode);
         activeRooms[roomCode].users.push({ id: socket.id, name: settings.teamName || 'Host', color: settings.teamColor || '#ff003c', purseRemaining: settings.startingPurse, squad: [], playing11: [] });
@@ -292,7 +293,6 @@ io.on('connection', (socket) => {
           room.settings.maxOverseas = data.maxOverseas;
           room.settings.format = data.format;
 
-          // Process the player pool safely here to avoid hanging
           let pool = (data.format === 'All') ? playersData : playersData.filter(p => p.formats && p.formats.includes(data.format));
           room.availablePlayers = pool.map(p => ({ ...p, basePrice: p.basePrice / 100 })).sort(() => Math.random() - 0.5); 
 
@@ -418,7 +418,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('evaluateResults', (roomCode) => {
-      // FIX: Correctly grabbing the roomCode without the "data." typo!
       const room = activeRooms[roomCode]; 
       if (room && room.hostId === socket.id && room.build11Phase) {
           finishGame(roomCode);
