@@ -6,7 +6,6 @@
     <title>IPL Pro: Esports Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
     <script src="/socket.io/socket.io.js"></script>
     
     <style>
@@ -114,12 +113,7 @@
         body.hype-active .stat-box { border-color: var(--neon-red); }
 
         .squad-section { background: rgba(0,0,0,0.5); padding: 12px; margin-bottom: 15px; border: 1px solid rgba(255, 0, 60, 0.15); text-align: left; transition: 0.3s;}
-        .squad-list { max-height: 90px; overflow-y: auto; font-size: 0.9em; padding: 0; margin: 8px 0 0 0; list-style: none; color: #b0bec5;}
-
-        .needs-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; }
-        .need-badge { font-family: 'Orbitron'; font-size: 0.65em; padding: 3px 6px; border: 1px solid #444; color: #777; border-radius: 3px; background: #000; transition: 0.3s;}
-        .need-badge.filled { border-color: var(--safe-green); color: var(--safe-green); background: rgba(0,255,136,0.1); }
-        .need-badge.alert { border-color: var(--neon-red); color: var(--neon-red); background: rgba(255,0,85,0.1); }
+        .squad-list { max-height: 120px; overflow-y: auto; font-size: 0.9em; padding: 0; margin: 8px 0 0 0; list-style: none; color: #b0bec5;}
 
         .chat-section { background: #030407; padding: 10px; border: 1px solid #222; margin-top: 15px; border-left: 2px solid var(--ui-accent); transition: 0.3s;}
         #chat-messages { height: 90px; overflow-y: auto; text-align: left; font-size: 0.9em; margin-bottom: 8px; color: #ccc; display: flex; flex-direction: column; }
@@ -214,14 +208,6 @@
     </div>
 
     <hr style="border-color: #333; margin: 20px 0;">
-
-    <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">FORMAT</div>
-    <select id="format-select">
-        <option value="All">ALL PLAYERS (122)</option>
-        <option value="T20">T20 MEGA AUCTION</option>
-        <option value="ODI">ODI DRAFT</option>
-        <option value="Test">TEST CHAMPIONSHIP</option>
-    </select>
     
     <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">STARTING PURSE (CR)</div>
     <input type="number" id="purse-input" value="100">
@@ -241,10 +227,26 @@
     <div style="text-align:center; font-size:1.2em; margin-bottom: 25px; background: rgba(0,0,0,0.5); padding: 10px; border: 1px dashed var(--ui-accent);">
         LINK CODE: <b style="color:var(--ui-accent); font-size: 1.5em; letter-spacing: 3px;" id="display-room-code"></b>
     </div>
-    <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">MAX SQUAD SIZE</div>
-    <input type="number" id="max-squad" value="15">
-    <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">MAX OVERSEAS SLOTS</div>
-    <input type="number" id="max-os" value="4">
+
+    <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">FORMAT (AFFECTS PLAYER POOL & AI ENGINE)</div>
+    <select id="format-select">
+        <option value="All">ALL PLAYERS (120)</option>
+        <option value="T20">T20 MEGA AUCTION</option>
+        <option value="ODI">ODI DRAFT</option>
+        <option value="Test">TEST CHAMPIONSHIP</option>
+    </select>
+
+    <div style="display:flex; gap: 10px;">
+        <div style="flex: 1;">
+            <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">MAX SQUAD SIZE</div>
+            <input type="number" id="max-squad" value="15">
+        </div>
+        <div style="flex: 1;">
+            <div style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px;">MAX OVERSEAS</div>
+            <input type="number" id="max-os" value="4">
+        </div>
+    </div>
+    
     <button onclick="saveAndStart()" style="width:100%; background:var(--neon-red); padding:15px; font-family:'Orbitron'; font-weight:900; color:#fff; border:none; cursor:pointer; margin-top:10px; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);">DEPLOY MATCH</button>
 </div>
 
@@ -293,21 +295,12 @@
     </div>
 
     <div class="squad-section">
-        <div style="display:flex; justify-content:space-between; font-family: 'Orbitron'; font-size: 0.85em;">
+        <div style="display:flex; justify-content:space-between; font-family: 'Orbitron'; font-size: 0.85em; margin-bottom: 8px;">
             <span style="color:var(--ui-accent);">SQUAD: <span id="squad-count" style="color:#fff">0</span>/<span id="rule-max-squad">15</span></span>
             <span style="display:flex; align-items:center; gap:4px; color:#aaa;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#aaa"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
                 <span id="os-count" style="color:#fff">0</span>/<span id="rule-max-os">4</span>
             </span>
-        </div>
-        
-        <div class="needs-grid" id="ai-needs">
-            <span class="need-badge alert" id="need-opn">OPN (0/2)</span>
-            <span class="need-badge alert" id="need-mid">MID (0/3)</span>
-            <span class="need-badge alert" id="need-pac">PAC (0/2)</span>
-            <span class="need-badge alert" id="need-spn">SPN (0/1)</span>
-            <span class="need-badge alert" id="need-wk">WK (0/1)</span>
-            <span class="need-badge alert" id="need-cap">CAP (0/1)</span>
         </div>
 
         <ul class="squad-list" id="my-squad-list">
@@ -417,7 +410,7 @@
         });
 
         let room = ""; let initialPurse = 100; let currentHiddenRating = 0; let isHost = false;
-        let myRules = { maxSquad: 15, maxOverseas: 4 };
+        let myRules = { maxSquad: 15, maxOverseas: 4, format: 'All' };
         let mySquadData = [];
         let myColor = "#ff003c";
         let allUsersCache = [];
@@ -459,7 +452,8 @@
         window.createGame = function() {
             initialPurse = parseFloat(document.getElementById('purse-input').value) || 100;
             const brand = window.getFranchiseData();
-            socket.emit('createRoom', { startingPurse: initialPurse, format: document.getElementById('format-select').value, teamName: brand.name, teamColor: brand.color });
+            // Format is no longer sent here, it waits for Host settings
+            socket.emit('createRoom', { startingPurse: initialPurse, teamName: brand.name, teamColor: brand.color });
         }
 
         window.joinGame = function() { 
@@ -485,13 +479,13 @@
             
             myRules.maxSquad = parseInt(document.getElementById('max-squad').value);
             myRules.maxOverseas = parseInt(document.getElementById('max-os').value);
-            socket.emit('updateRulesAndStart', { roomCode: room, maxSquad: myRules.maxSquad, maxOverseas: myRules.maxOverseas });
+            myRules.format = document.getElementById('format-select').value;
+            
+            socket.emit('updateRulesAndStart', { roomCode: room, maxSquad: myRules.maxSquad, maxOverseas: myRules.maxOverseas, format: myRules.format });
         }
 
         socket.on('roomJoined', d => { 
             room = d.code; window.roomCodeCache = room;
-            
-            // FIX 2: Correctly recover host privileges on the frontend
             isHost = d.isHost; 
             
             initialPurse = d.purse;
@@ -505,17 +499,14 @@
             document.getElementById('auction-screen').classList.remove('hidden');
             document.getElementById('nav-code').innerText = room; 
             
-            // FIX 2 (Continued): Actually unhide the host panels!
             if (isHost) {
                 document.getElementById('host-controls').classList.remove('hidden');
                 
-                // Check if they reconnected while waiting to pick the next player
                 if (document.getElementById('p-name').innerText === "SYSTEM STANDBY" || document.getElementById('p-name').innerText === "") {
                      document.getElementById('host-selection-panel').classList.remove('hidden');
                      document.getElementById('pause-btn').classList.add('hidden');
                      document.getElementById('undo-btn').classList.add('hidden');
                 } else {
-                     // They reconnected while a player is actively on the block
                      document.getElementById('host-selection-panel').classList.add('hidden');
                      document.getElementById('pause-btn').classList.remove('hidden');
                      document.getElementById('undo-btn').classList.remove('hidden');
@@ -718,27 +709,6 @@
 
                 document.getElementById('squad-count').innerText = me.squad.length;
                 document.getElementById('os-count').innerText = me.squad.filter(p => p.country !== 'India').length;
-                
-                let opn=0, mid=0, pac=0, spn=0, wks=0, caps=0;
-                me.squad.forEach(p => {
-                    let r = captainList.includes(p.name) ? 'Captain' : p.role;
-                    if(r === 'Captain') caps++;
-                    if(p.role === 'Opener') opn++;
-                    if(p.role === 'Middle Order') mid++;
-                    if(p.role === 'Wicketkeeper') wks++;
-                    if(p.role === 'Pacer') pac++;
-                    if(p.role === 'Spinner') spn++;
-                    if(p.role === 'All-Rounder') { mid++; pac++; spn++; } 
-                });
-                
-                const updateBadge = (id, count, req) => {
-                    const el = document.getElementById(id);
-                    el.innerText = `${id.replace('need-','').toUpperCase()} (${count}/${req})`;
-                    if(count >= req) { el.classList.remove('alert'); el.classList.add('filled'); }
-                };
-                updateBadge('need-opn', opn, 2); updateBadge('need-mid', mid, 3);
-                updateBadge('need-pac', pac, 2); updateBadge('need-spn', spn, 1);
-                updateBadge('need-wk', wks, 1); updateBadge('need-cap', caps, 1);
 
                 const list = document.getElementById('my-squad-list');
                 list.innerHTML = '';
