@@ -36,7 +36,6 @@ try {
 const activeRooms = {};
 const captainList = ["MS Dhoni", "Rohit Sharma", "Pat Cummins", "Shreyas Iyer", "Sanju Samson", "Ruturaj Gaikwad", "KL Rahul", "Shubman Gill", "Kane Williamson", "Babar Azam", "Virat Kohli", "Faf du Plessis"];
 
-// SERVER MEMORY PROTECTION: Clean up dead rooms every 6 hours
 setInterval(() => {
     const now = Date.now();
     for (let code in activeRooms) {
@@ -56,12 +55,15 @@ function startTimer(roomCode, isResume = false) {
     io.to(roomCode).emit('timerUpdate', room.timeLeft);
     
     room.timerInterval = setInterval(() => {
-        room.timeLeft--;
-        io.to(roomCode).emit('timerUpdate', room.timeLeft);
-        if (room.timeLeft <= 0) { 
-            clearInterval(room.timerInterval); 
-            room.timerInterval = null;
-            if(room && !room.isSelling && !room.tradePhase && !room.build11Phase && room.currentPlayer) {
+        const currentRoom = activeRooms[roomCode];
+        if (!currentRoom) return;
+
+        currentRoom.timeLeft--;
+        io.to(roomCode).emit('timerUpdate', currentRoom.timeLeft);
+        if (currentRoom.timeLeft <= 0) { 
+            clearInterval(currentRoom.timerInterval); 
+            currentRoom.timerInterval = null;
+            if(!currentRoom.isSelling && !currentRoom.tradePhase && !currentRoom.build11Phase && currentRoom.currentPlayer) {
                 sellPlayer(roomCode); 
             }
         }
@@ -135,7 +137,6 @@ function startBuild11Phase(roomCode) {
     io.to(roomCode).emit('build11PhaseStarted', room.users);
 }
 
-// UPGRADED DYNAMIC FORMAT & COMBINATION AI ENGINE WITH EXPLANATIONS
 function calculateAIRating(playingXI, format) {
     if(!playingXI || playingXI.length === 0) return { score: "0.0", reasons: ["❌ No players selected."] };
     
@@ -160,12 +161,10 @@ function calculateAIRating(playingXI, format) {
         if(p.country !== 'India') overseas++;
     });
     
-    // --- SYNERGY BONUSES ---
     if (roles['Opener'] >= 2) { score += 0.3; reasons.push("✅ Strong Opening Pair (+0.3)"); }
     if (roles['All-Rounder'] >= 2) { score += 0.4; reasons.push("✅ Excellent All-Round Depth (+0.4)"); }
     if (roles['Pacer'] >= 2 && roles['Spinner'] >= 1) { score += 0.5; reasons.push("✅ Balanced Pace/Spin Attack (+0.5)"); }
 
-    // --- UNIVERSAL PENALTIES ---
     if(roles['Wicketkeeper'] === 0) { score -= 1.5; reasons.push("❌ Missing Wicketkeeper (-1.5)"); }
     if(roles['Opener'] < 2) { score -= 1.0; reasons.push("❌ Lacks Opening Batsmen (-1.0)"); }
     if(roles['Captain'] === 0) { score -= 0.5; reasons.push("❌ No Captain Assigned (-0.5)"); }
@@ -178,7 +177,6 @@ function calculateAIRating(playingXI, format) {
     
     let bowlingOptions = roles['Pacer'] + roles['Spinner'] + roles['All-Rounder'];
 
-    // --- FORMAT-SPECIFIC LOGIC ---
     if (format === 'T20') {
         if(roles['All-Rounder'] < 2) { score -= 1.0; reasons.push("❌ T20: Lacks All-Rounders (-1.0)"); }
         if(bowlingOptions < 5) { score -= 1.5; reasons.push("❌ T20: Insufficient Bowling Options (-1.5)"); }
@@ -265,7 +263,9 @@ io.on('connection', (socket) => {
             }
 
             let isUserHost = (room.hostId === socket.id);
-            socket.emit('roomJoined', { code: roomCode, purse: existingUser.purseRemaining, rules: room.settings, isHost: isUserHost });
+            let isPaused = (room.timerInterval === null && room.currentPlayer !== null && !room.isSelling);
+            
+            socket.emit('roomJoined', { code: roomCode, purse: existingUser.purseRemaining, rules: room.settings, isHost: isUserHost, isPaused: isPaused });
 
             if (room.build11Phase) {
                 socket.emit('build11PhaseStarted', room.users);
@@ -276,6 +276,7 @@ io.on('connection', (socket) => {
                     socket.emit('newPlayerUp', { player: room.currentPlayer });
                     if (room.highestBidder) socket.emit('bidUpdated', { bidAmount: room.currentBid, bidderName: room.highestBidder.name, bidderColor: room.highestBidder.color, hypeMode: false });
                     socket.emit('timerUpdate', room.timeLeft);
+                    if (isPaused) socket.emit('auctionPaused');
                 } else {
                     socket.emit('waitingForNextPlayer', room.availablePlayers);
                 }
@@ -379,6 +380,23 @@ io.on('connection', (socket) => {
           room.isSelling = false;
           room.currentPlayer = null; 
           startTradePhase(roomCode);
+      }
+  });
+
+  // NEW: The Host Panic Button Handler
+  socket.on('syncState', (roomCode) => {
+      const room = activeRooms[roomCode];
+      if (room) {
+          if (room.currentPlayer) {
+              io.to(roomCode).emit('newPlayerUp', { player: room.currentPlayer });
+              if (room.highestBidder) io.to(roomCode).emit('bidUpdated', { bidAmount: room.currentBid, bidderName: room.highestBidder.name, bidderColor: room.highestBidder.color, hypeMode: false });
+              io.to(roomCode).emit('timerUpdate', room.timeLeft);
+              if (room.timerInterval === null && !room.isSelling) {
+                  io.to(roomCode).emit('auctionPaused');
+              }
+          } else {
+              io.to(roomCode).emit('waitingForNextPlayer', room.availablePlayers);
+          }
       }
   });
 
